@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZYNTRA '26 — Sapthagiri NPS University Inter-College Tech Fest | Bengaluru</title>
+    <meta name="description" content="ZYNTRA '26 — Neural Horizons: Where Minds Meet Machines. Flagship Inter-College Technology Festival of Sapthagiri NPS University, Bengaluru." />
+    <meta name="keywords" content="ZYNTRA 26, ZYNTRA 2026, Sapthagiri NPS University, SNPSU, Tech Fest Bengaluru, Hackathons, Robotics, Coding, Competitions, Karnataka" />
+    <meta name="theme-color" content="#020202" />
+    
+    <!-- Favicon: Cyber Zyntra Neon Crest -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,5 95,28 95,72 50,95 5,72 5,28' fill='%23020202' stroke='%2300f2ff' stroke-width='6'/><path d='M30,30 L70,30 L30,70 L70,70' fill='none' stroke='%2300f2ff' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='6' fill='%23ff007f'/></svg>" />
+
+    <!-- Google Fonts: Space Grotesk, Inter, Bebas Neue, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN for rich cyber utilities -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              accent: 'var(--accent)',
+              'neon-blue': 'var(--neon-blue)',
+              'theme-bg': 'var(--bg-primary)',
+              'theme-surface': 'var(--bg-secondary)',
+              'theme-text': 'var(--text-primary)',
+              'theme-muted': 'var(--text-secondary)',
+              'theme-border': 'var(--border-color)',
+            },
+            fontFamily: {
+              technical: ['Inter', 'sans-serif'],
+              impact: ['Bebas Neue', 'cursive'],
+              mono: ['JetBrains Mono', 'Space Grotesk', 'monospace'],
+            },
+            animation: {
+              'spin-slow': 'spin 12s linear infinite',
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-black text-white antialiased selection:bg-cyan-400 selection:text-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

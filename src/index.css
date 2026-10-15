@@ -1,0 +1,315 @@
+/* ==========================================================================
+   RIT TECHFEST '26 — NEURAL HORIZONS
+   Ramaiah Institute of Technology, Bengaluru
+   Official Styling & Design System
+   ========================================================================== */
+
+:root {
+  --bg-primary: #020202;
+  --bg-secondary: #0a0a0a;
+  --bg-surface: #0e0e0e;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --accent: #00f2ff;
+  --neon-blue: #00f2ff;
+  --neon-magenta: #ff007f;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#root {
+  width: 100%;
+}
+
+/* Fonts */
+.font-technical {
+  font-family: 'Inter', sans-serif;
+}
+
+.font-impact {
+  font-family: 'Bebas Neue', cursive;
+  letter-spacing: 0.02em;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'Space Grotesk', monospace;
+}
+
+/* Custom Cyber Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}
+
+/* Glitch text effect */
+.glitch-text {
+  position: relative;
+  text-shadow: 0.05em 0 0 rgba(255, 0, 80, 0.75),
+               -0.025em -0.05em 0 rgba(0, 242, 255, 0.75),
+               0.025em 0.05em 0 rgba(0, 255, 120, 0.75);
+  animation: glitch 1.8s infinite alternate;
+}
+
+@keyframes glitch {
+  0% {
+    text-shadow: 0.05em 0 0 rgba(255, 0, 80, 0.75), -0.05em -0.025em 0 rgba(0, 242, 255, 0.75), 0.025em 0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  14% {
+    text-shadow: 0.05em 0 0 rgba(255, 0, 80, 0.75), -0.05em -0.025em 0 rgba(0, 242, 255, 0.75), 0.025em 0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  15% {
+    text-shadow: -0.05em -0.025em 0 rgba(255, 0, 80, 0.75), 0.025em 0.025em 0 rgba(0, 242, 255, 0.75), -0.05em -0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  49% {
+    text-shadow: -0.05em -0.025em 0 rgba(255, 0, 80, 0.75), 0.025em 0.025em 0 rgba(0, 242, 255, 0.75), -0.05em -0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  50% {
+    text-shadow: 0.025em 0.05em 0 rgba(255, 0, 80, 0.75), 0.05em 0 0 rgba(0, 242, 255, 0.75), 0 -0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  99% {
+    text-shadow: 0.025em 0.05em 0 rgba(255, 0, 80, 0.75), 0.05em 0 0 rgba(0, 242, 255, 0.75), 0 -0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+  100% {
+    text-shadow: -0.025em 0 0 rgba(255, 0, 80, 0.75), -0.025em -0.025em 0 rgba(0, 242, 255, 0.75), 0.025em 0.05em 0 rgba(0, 255, 120, 0.75);
+  }
+}
+
+/* Clean Cyber Void Background */
+.bg-noise {
+  display: none;
+}
+
+/* Scanlines HUD overlay */
+.hud-scanlines {
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+              linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 2px, 3px 100%;
+}
+
+/* Spatial node section spacing */
+.spatial-node {
+  width: 100%;
+  position: relative;
+  padding-top: 100px;
+  padding-bottom: 100px;
+  z-index: 1;
+}
+
+@media (max-width: 1024px) {
+  .spatial-node {
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
+}
+
+/* Cyber Button Presets */
+.btn-cyber-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background-color: var(--accent);
+  color: #000000;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-style: italic;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+}
+
+.btn-cyber-primary:hover {
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+.btn-cyber-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: rgba(0, 242, 255, 0.03);
+  color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-style: italic;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.btn-cyber-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0, 242, 255, 0.1);
+  box-shadow: 0 0 25px rgba(0, 242, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Animations */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 16s linear infinite;
+}
+
+/* Cyber card corner accents */
+.cyber-card {
+  position: relative;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.35s ease;
+}
+
+.cyber-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 35px rgba(0, 242, 255, 0.15);
+}
+
+.cyber-corner-tr {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-top: 1.5px solid var(--accent);
+  border-right: 1.5px solid var(--accent);
+  pointer-events: none;
+}
+
+.cyber-corner-bl {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-bottom: 1.5px solid var(--accent);
+  border-left: 1.5px solid var(--accent);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   CYBER CURSOR & 3D INTERACTION STYLES
+   ========================================================================== */
+
+/* Hide default cursor on desktop when fine pointer is active so CyberCursor HUD renders smoothly */
+@media (hover: hover) and (pointer: fine) {
+  body, a, button, input, select, textarea, [role="button"], .cursor-pointer {
+    cursor: none !important;
+  }
+}
+
+/* Fallback Hardware Cyber Cursor for coarse pointers or when JS is hydrating */
+html {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M2 2 L23 11 L13 14 L9 23 Z' fill='%23ffffff' stroke='%2300f2ff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") 2 2, auto;
+}
+
+/* Cyber Ripple Wave Animation for clicks */
+@keyframes cyberRipple {
+  0% {
+    width: 0px;
+    height: 0px;
+    opacity: 1;
+    border-width: 2.5px;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  60% {
+    opacity: 0.8;
+    border-width: 1.5px;
+  }
+  100% {
+    width: 90px;
+    height: 90px;
+    opacity: 0;
+    border-width: 0.5px;
+    transform: translate(-50%, -50%) scale(1.4);
+  }
+}
+
+.animate-cyber-ripple {
+  animation: cyberRipple 0.65s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+/* Telemetry Marquee Ticker */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  display: flex;
+  width: max-content;
+  animation: ticker 28s linear infinite;
+}
+
+.animate-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* 3D Perspective Preservation */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
