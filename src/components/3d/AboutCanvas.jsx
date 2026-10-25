@@ -60,28 +60,25 @@ export default function AboutCanvas() {
       nodePositions.push(new THREE.Vector3(x, y, z));
     }
 
-    // 3. Holographic Network Line Interconnects
+    // 3. Holographic Network Line Interconnects (Single draw-call LineSegments)
     const lineMat = new THREE.LineBasicMaterial({
       color: 0x00E5FF,
       transparent: true,
       opacity: 0.25,
     });
 
-    const linesGroup = new THREE.Group();
+    const linePoints = [];
     for (let i = 0; i < nodePositions.length; i++) {
       for (let j = i + 1; j < nodePositions.length; j++) {
         const dist = nodePositions[i].distanceTo(nodePositions[j]);
         if (dist < 0.95) {
-          const lineGeo = new THREE.BufferGeometry().setFromPoints([
-            nodePositions[i],
-            nodePositions[j],
-          ]);
-          const line = new THREE.Line(lineGeo, lineMat);
-          linesGroup.add(line);
+          linePoints.push(nodePositions[i], nodePositions[j]);
         }
       }
     }
-    globeGroup.add(linesGroup);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
+    const linesMesh = new THREE.LineSegments(lineGeo, lineMat);
+    globeGroup.add(linesMesh);
 
     // 4. Outer Orbital Latitude Ring
     const orbitalRingGeo = new THREE.TorusGeometry(2.2, 0.02, 16, 90);
@@ -103,7 +100,7 @@ export default function AboutCanvas() {
     globeGroup.add(orbitalRing2);
 
     // 5. Outer Particle Cloud
-    const partCount = 400;
+    const partCount = 300;
     const partGeo = new THREE.BufferGeometry();
     const posArr = new Float32Array(partCount * 3);
     for (let i = 0; i < partCount * 3; i += 3) {
@@ -157,9 +154,22 @@ export default function AboutCanvas() {
     };
     window.addEventListener('resize', handleResize);
 
+    // IntersectionObserver to pause rendering when offscreen
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
     let animId;
     const animate = () => {
       animId = requestAnimationFrame(animate);
+
+      // Save GPU resources if offscreen
+      if (!isVisible) return;
 
       // Dampen velocity when not dragging
       if (!isDragging) {
@@ -182,6 +192,7 @@ export default function AboutCanvas() {
 
     return () => {
       cancelAnimationFrame(animId);
+      observer.disconnect();
       domEl.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);

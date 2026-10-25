@@ -34,16 +34,16 @@ export default function AboutSection() {
             {/* Tag indicator */}
             <div className="flex items-center gap-4 md:gap-8">
               <span className="text-[8px] md:text-xs font-mono uppercase tracking-[0.5em] md:tracking-[0.8em] text-cyan-400 font-black italic bg-black/60 px-3 py-1 border border-cyan-400/20">
-                EVENT OVERVIEW
+                EVENT OVERVIEW // THE NEW DIMENSION
               </span>
               <div className="h-[1px] flex-grow bg-cyan-400/20" />
             </div>
 
             {/* Massive Heading */}
             <header>
-              <h2 className="text-5xl sm:text-7xl md:text-8xl lg:text-[95px] font-technical tracking-widest uppercase leading-[0.9] text-white italic font-black">
-                THE <br />
-                <span className="text-cyan-400 glitch-text">ZYNTRA '26</span>
+              <h2 className="text-5xl sm:text-7xl md:text-8xl lg:text-[95px] font-impact tracking-wider uppercase leading-[0.9] text-white font-black">
+                ZYNTRA '26 <br />
+                <span className="crystal-chrome-text">THE NEW DIMENSION</span>
               </h2>
             </header>
 
@@ -54,7 +54,7 @@ export default function AboutSection() {
 
             {/* Tags Matrix */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-              {about.tags.map((tag) => (
+              {['Explore', 'Innovate', 'Create', 'Compete'].map((tag) => (
                 <div
                   key={tag}
                   className="flex flex-col gap-2.5 group bg-black/40 p-3.5 border border-white/10 hover:border-cyan-400 transition-all backdrop-blur-sm"

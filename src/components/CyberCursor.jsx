@@ -29,45 +29,55 @@ export default function CyberCursor() {
     }
 
     // High-visibility cyan sparks for particle trail (No red/magenta)
+    // High-visibility cyan sparks for particle trail
     const particles = [];
-    const MAX_PARTICLES = 30;
+    const MAX_PARTICLES = 16;
 
     const handleMouseMove = (e) => {
       mousePos.current.x = e.clientX;
       mousePos.current.y = e.clientY;
       if (!isVisible) setIsVisible(true);
 
-      // Subtle cyan/white plasma sparks on motion
-      if (particles.length < MAX_PARTICLES && Math.random() > 0.45) {
+      // Subtle cyan/white sparks on motion
+      if (particles.length < MAX_PARTICLES && Math.random() > 0.55) {
         particles.push({
           x: e.clientX,
           y: e.clientY,
-          vx: (Math.random() - 0.5) * 1.6,
-          vy: (Math.random() - 0.5) * 1.6,
-          size: 3 + Math.random() * 2,
-          alpha: 0.85,
-          color: Math.random() > 0.3 ? '#00f2ff' : '#ffffff',
+          vx: (Math.random() - 0.5) * 1.4,
+          vy: (Math.random() - 0.5) * 1.4,
+          size: 2.5 + Math.random() * 2,
+          alpha: 0.8,
+          color: Math.random() > 0.35 ? '#00f2ff' : '#ffffff',
         });
       }
+    };
 
-      // Check hover targets
+    // Highly optimized event-delegated hover detection (0ms cost, no per-frame DOM traversal)
+    const handlePointerOver = (e) => {
       const target = e.target;
-      if (target) {
-        const interactiveEl = target.closest(
-          'button, a, input, select, textarea, [role="button"], .cursor-pointer, [data-cursor], .cyber-card, .glass-card, [tabindex]'
-        );
-        if (interactiveEl) {
-          if (!hoverRef.current) {
-            hoverRef.current = true;
-            setIsHovering(true);
-          }
-        } else {
-          if (hoverRef.current) {
-            hoverRef.current = false;
-            setIsHovering(false);
-          }
-        }
+      if (!target) return;
+      const interactiveEl = target.closest(
+        'button, a, input, select, textarea, [role="button"], .cursor-pointer, [data-cursor], .cyber-card, .glass-card, [tabindex]'
+      );
+      if (interactiveEl) {
+        hoverRef.current = true;
+        setIsHovering(true);
       }
+    };
+
+    const handlePointerOut = (e) => {
+      const related = e.relatedTarget;
+      if (
+        related &&
+        related.closest &&
+        related.closest(
+          'button, a, input, select, textarea, [role="button"], .cursor-pointer, [data-cursor], .cyber-card, .glass-card, [tabindex]'
+        )
+      ) {
+        return;
+      }
+      hoverRef.current = false;
+      setIsHovering(false);
     };
 
     const handleMouseDown = (e) => {
@@ -79,7 +89,7 @@ export default function CyberCursor() {
         x: e.clientX,
         y: e.clientY,
       };
-      setRipples((prev) => [...prev.slice(-3), newRipple]);
+      setRipples((prev) => [...prev.slice(-2), newRipple]);
     };
 
     const handleMouseUp = () => {
@@ -96,6 +106,8 @@ export default function CyberCursor() {
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.addEventListener('pointerover', handlePointerOver, { passive: true });
+    document.addEventListener('pointerout', handlePointerOut, { passive: true });
     window.addEventListener('mousedown', handleMouseDown, { passive: true });
     window.addEventListener('mouseup', handleMouseUp, { passive: true });
     document.addEventListener('mouseleave', handleMouseLeave);
@@ -103,7 +115,7 @@ export default function CyberCursor() {
 
     // Canvas particle trail
     const canvas = canvasRef.current;
-    const ctx = canvas ? canvas.getContext('2d') : null;
+    const ctx = canvas ? canvas.getContext('2d', { alpha: true }) : null;
 
     const resizeCanvas = () => {
       if (canvas) {
@@ -120,12 +132,12 @@ export default function CyberCursor() {
       const my = mousePos.current.y;
 
       // Smooth trailing ring lerp
-      const lerp = hoverRef.current ? 0.28 : 0.18;
+      const lerp = hoverRef.current ? 0.32 : 0.22;
       ringPos.current.x += (mx - ringPos.current.x) * lerp;
       ringPos.current.y += (my - ringPos.current.y) * lerp;
 
       const targetScale = clickRef.current ? 0.75 : hoverRef.current ? 1.3 : 1.0;
-      ringScale.current += (targetScale - ringScale.current) * 0.22;
+      ringScale.current += (targetScale - ringScale.current) * 0.25;
 
       // Pointer positioning
       if (pointerRef.current) {
@@ -137,32 +149,30 @@ export default function CyberCursor() {
         ringRef.current.style.transform = `translate3d(${ringPos.current.x}px, ${ringPos.current.y}px, 0) scale(${ringScale.current})`;
       }
 
-      // Draw subtle cyan particle trail
-      if (ctx && canvas) {
+      // Draw subtle cyan particle trail (Zero-shadowBlur for maximum 144Hz performance)
+      if (ctx && canvas && particles.length > 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
           p.x += p.vx;
           p.y += p.vy;
-          p.alpha *= 0.92;
-          p.size *= 0.96;
+          p.alpha *= 0.90;
+          p.size *= 0.95;
 
           if (p.alpha <= 0.05 || p.size <= 0.5) {
             particles.splice(i, 1);
             continue;
           }
 
-          ctx.save();
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fillStyle = p.color;
           ctx.globalAlpha = p.alpha;
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = p.color;
           ctx.fill();
-          ctx.restore();
         }
+      } else if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
       animId = requestAnimationFrame(render);
@@ -173,6 +183,8 @@ export default function CyberCursor() {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('pointerover', handlePointerOver);
+      document.removeEventListener('pointerout', handlePointerOut);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mouseleave', handleMouseLeave);
@@ -206,125 +218,29 @@ export default function CyberCursor() {
         style={{ mixBlendMode: 'screen' }}
       />
 
-      {/* Primary Pointer Element */}
-      <div
-        ref={pointerRef}
-        className="fixed top-0 left-0 z-30 pointer-events-none"
-        style={{ willChange: 'transform' }}
-      >
-        {isHovering ? (
-          /* ==============================================================
-             TARGET SYMBOL / LOCK-ON RETICLE (When Hovering Buttons/Links)
-             Crisp Cyber Cyan & White — No Red Highlighting
-             ============================================================== */
-          <div
-            className={`-translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ${
-              isClicking ? 'scale-85' : 'scale-100'
-            }`}
-            style={{ width: '40px', height: '40px' }}
-          >
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{
-                filter:
-                  'drop-shadow(0 0 10px rgba(0, 242, 255, 0.9)) drop-shadow(0 2px 5px rgba(0,0,0,0.9))',
-              }}
-            >
-              {/* Outer Dashed Target Scope Circle */}
-              <circle
-                cx="20"
-                cy="20"
-                r="15"
-                stroke="#00f2ff"
-                strokeWidth="1.6"
-                strokeDasharray="6 4"
-                className="opacity-95"
-              />
-
-              {/* Inner Precision Reticle */}
-              <circle
-                cx="20"
-                cy="20"
-                r="7.5"
-                stroke="#ffffff"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-                className="opacity-80"
-              />
-
-              {/* 4 Precision Crosshair Aiming Ticks (Point to center) */}
-              <line x1="20" y1="2" x2="20" y2="10" stroke="#00f2ff" strokeWidth="2.2" strokeLinecap="round" />
-              <line x1="20" y1="30" x2="20" y2="38" stroke="#00f2ff" strokeWidth="2.2" strokeLinecap="round" />
-              <line x1="2" y1="20" x2="10" y2="20" stroke="#00f2ff" strokeWidth="2.2" strokeLinecap="round" />
-              <line x1="30" y1="20" x2="38" y2="20" stroke="#00f2ff" strokeWidth="2.2" strokeLinecap="round" />
-
-              {/* Center Bullseye Node */}
-              <circle cx="20" cy="20" r="2.8" fill="#ffffff" stroke="#00f2ff" strokeWidth="1.5" />
-
-              {/* 4 Corner Target Lock Brackets ⌜ ⌝ ⌞ ⌟ */}
-              <path d="M 6 12 L 6 6 L 12 6" stroke="#00f2ff" strokeWidth="2" strokeLinecap="round" />
-              <path d="M 34 12 L 34 6 L 28 6" stroke="#00f2ff" strokeWidth="2" strokeLinecap="round" />
-              <path d="M 6 28 L 6 34 L 12 34" stroke="#00f2ff" strokeWidth="2" strokeLinecap="round" />
-              <path d="M 34 28 L 34 34 L 28 34" stroke="#00f2ff" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-        ) : (
-          /* ==============================================================
-             NORMAL STATE: Sleek 24px Cyber Arrow Pointer (Tip at 0, 0)
-             ============================================================== */
-          <div
-            className={`transition-transform duration-150 ${
-              isClicking ? 'scale-90' : 'scale-100'
-            }`}
-            style={{ transformOrigin: 'top left' }}
-          >
-            <svg
-              width="26"
-              height="26"
-              viewBox="0 0 26 26"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{
-                filter:
-                  'drop-shadow(0 0 8px rgba(0, 242, 255, 0.85)) drop-shadow(0 2px 4px rgba(0,0,0,0.9))',
-              }}
-            >
-              {/* Clean Aerodynamic Cyber Arrow */}
-              <path
-                d="M 2 2 L 23 11 L 13 14 L 9 23 Z"
-                fill="#ffffff"
-                stroke="#00f2ff"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-              {/* Inner Cyan Core Accent */}
-              <path
-                d="M 4 5 L 14 10 L 10 12 L 8 16 Z"
-                fill="#00f2ff"
-                opacity="0.35"
-              />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Trailing Fluid Halo Ring */}
+      {/* Trailing Fluid Holographic Reticle Ring */}
       <div
         ref={ringRef}
         className="fixed top-0 left-0 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"
         style={{ willChange: 'transform' }}
       >
         <div
-          className={`rounded-full transition-all duration-200 border flex items-center justify-center ${
+          className={`rounded-full transition-all duration-200 flex items-center justify-center relative ${
             isHovering
-              ? 'w-12 h-12 border-cyan-400 bg-cyan-400/10 shadow-[0_0_20px_rgba(0,242,255,0.45)]'
-              : 'w-10 h-10 border-[#00f2ff]/50 bg-transparent shadow-[0_0_12px_rgba(0,242,255,0.2)]'
+              ? 'w-11 h-11 border border-cyan-400 bg-cyan-400/10 shadow-[0_0_18px_rgba(0,242,255,0.6)]'
+              : 'w-7 h-7 border border-[#00f2ff]/60 bg-cyan-400/5 shadow-[0_0_10px_rgba(0,242,255,0.25)]'
           }`}
-        />
+        >
+          {isHovering && (
+            <>
+              {/* Subtle 4-corner targeting brackets */}
+              <div className="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-cyan-400" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-cyan-400" />
+              <div className="absolute -bottom-1 -left-1 w-2 h-2 border-b-2 border-l-2 border-cyan-400" />
+              <div className="absolute -bottom-1 -right-1 w-2 h-2 border-b-2 border-r-2 border-cyan-400" />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Clean Click Sonar Shockwave */}

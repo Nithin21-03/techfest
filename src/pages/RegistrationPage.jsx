@@ -67,18 +67,17 @@ const SEMESTERS = [
 ];
 
 const TRACKS = [
-  'Artificial Intelligence and Machine Learning',
-  'Data Science, Big Data and Data Analytics',
-  'Cybersecurity, Privacy and Digital Forensics',
-  'CodeNova: 36H Flagship Hackathon',
-  'Internet of Things and Edge Computing',
-  'Cloud Computing and Distributed Systems',
-  'Blockchain and Emerging Computing Technologies',
-  'Computer Vision and Image Processing',
-  'Natural Language Processing and Generative AI',
-  'Robotics, Automation and Intelligent Systems (RoboWars)',
-  'Software Engineering, Testing and Agile Development',
-  'Human–Computer Interaction and Spatial Computing',
+  'Project / Paper Presentation',
+  'Prompt Detection + Pixel Art (3 Rounds)',
+  'Crime Scene & Digital Forensics',
+  'Debugging Competition: Code Breaker',
+  'Neural Escape Room: The Lockdown',
+  'Wikkivace: Wikipedia Speedrun',
+  'Startup Pitch: The Next Unicorn',
+  'Grand Tech Treasure Hunt',
+  'UI / UX Design Competition',
+  'Artificial Intelligence & Machine Learning Track',
+  'Cloud, IoT & Distributed Systems Track',
 ];
 
 const INITIAL_FORM_DATA = {
@@ -105,7 +104,7 @@ const INITIAL_FORM_DATA = {
 
   // Step 3: Project & Track
   projectTitle: '',
-  projectCategory: 'Artificial Intelligence and Machine Learning',
+  projectCategory: 'Project / Paper Presentation',
   technologies: '',
   projectAbstract: '',
   mentorName: '',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Lenis from 'lenis';
 import Navbar from './components/Navbar';
 import HeroCanvas from './components/3d/HeroCanvas';
 import HeroSection from './components/HeroSection';
@@ -41,6 +42,34 @@ export default function App() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [brochureModalOpen, setBrochureModalOpen] = useState(false);
 
+  // Initialize Lenis Ultra-Smooth Inertial Scrolling
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 0.85,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -8 * t)),
+      orientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1.05,
+      touchMultiplier: 1.4,
+      infinite: false,
+    });
+
+    window.__lenis = lenis;
+
+    let rafId;
+    function raf(time) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+      window.__lenis = null;
+    };
+  }, []);
+
   // Sync hash routing so back/forward browser buttons work seamlessly
   useEffect(() => {
     const handleHashChange = () => {
@@ -67,21 +96,33 @@ export default function App() {
     setRegisterEventId(eventId);
     setCurrentPage('register');
     window.location.hash = eventId ? `#register?event=${eventId}` : '#register';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (window.__lenis) {
+      window.__lenis.scrollTo(0, { immediate: false });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleNavigateAdmin = () => {
     soundFX.playClick();
     setCurrentPage('admin');
     window.location.hash = '#admin';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (window.__lenis) {
+      window.__lenis.scrollTo(0, { immediate: false });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleNavigateHome = () => {
     soundFX.playClick();
     setCurrentPage('home');
     window.location.hash = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (window.__lenis) {
+      window.__lenis.scrollTo(0, { immediate: false });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
