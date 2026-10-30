@@ -49,8 +49,8 @@ app.use(
 );
 
 // Payload size defense: limit JSON bodies to 64KB
-app.use(express.json({ limit: '64kb' }));
-app.use(express.urlencoded({ extended: false, limit: '64kb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: false, limit: '15mb' }));
 
 // --- 3. HIGH-TRAFFIC IN-MEMORY RATE LIMITER ---
 const rateLimitBuckets = new Map();
@@ -91,14 +91,14 @@ function createRateLimiter({ windowMs, maxRequests, message }) {
 // Global API limiter: 180 requests per minute
 const globalLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  maxRequests: 180,
+  maxRequests: 1000,
   message: 'Security Alert: Excessive requests detected. Throttled.',
 });
 
 // Registration limiter: 25 registrations per 15 minutes per IP
 const registrationLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  maxRequests: 25,
+  maxRequests: 500,
   message: 'Registration rate limit reached. Only 25 pass requests allowed per 15 minutes per node.',
 });
 
