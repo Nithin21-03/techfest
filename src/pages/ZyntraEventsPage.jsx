@@ -182,7 +182,10 @@ export const PAY = {
   },
 };
 
-export const GOOGLE_CLIENT_ID = '';
+export const GOOGLE_CLIENT_ID =
+  (typeof window !== 'undefined' && localStorage.getItem('zyntra_google_client_id')) ||
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '';
 export const GOOGLE_REDIRECT_URI = '';
 
 export const DETAILS = [
@@ -227,6 +230,58 @@ function strength(p) {
   if (/\d/.test(p)) n++;
   if (/[^A-Za-z0-9]/.test(p)) n++;
   return n;
+}
+
+
+export function launchGoogleSignIn({ clientId, onSuccess, onError }) {
+  if (typeof window === 'undefined') return false;
+
+  // 1. Google Identity Services OAuth2 token client (popup mode)
+  if (window.google?.accounts?.oauth2 && clientId) {
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse?.access_token) {
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: 'Bearer ' + tokenResponse.access_token },
+              });
+              const info = await res.json();
+              if (info?.email) {
+                onSuccess({
+                  email: info.email.toLowerCase(),
+                  name: info.name || info.email.split('@')[0],
+                  picture: info.picture,
+                  isGoogle: true,
+                });
+                return;
+              }
+            } catch (err) {
+              console.error('Failed to fetch Google profile', err);
+            }
+          }
+          onError?.('Could not retrieve Google profile');
+        },
+        error_callback: (err) => {
+          onError?.(err?.message || 'Google Sign-In was closed.');
+        },
+      });
+
+      client.requestAccessToken({ prompt: 'select_account' });
+      return true;
+    } catch (err) {
+      console.warn('GIS TokenClient init error:', err);
+    }
+  }
+
+  // 2. Fallback to redirect if GIS token client is unavailable
+  if (clientId) {
+    return googleRedirect();
+  }
+
+  return false;
 }
 
 function googleRedirect(evId) {
@@ -533,7 +588,7 @@ export function Detail({ ev, regs, onRegister, onCancel, back }) {
   );
 }
 
-export function SignIn({ evId, onAuth }) {
+export function SignIn({ evId, onAuth, leaderName = '' }) {
   const [mode, setMode] = useState('in');
   const [f, setF] = useState({ name: '', email: '', pw: '', pw2: '', remember: true });
   const [show, setShow] = useState(false);
@@ -541,6 +596,21 @@ export function SignIn({ evId, onAuth }) {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [gAsk, setGAsk] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [customClientId, setCustomClientId] = useState(() => {
+    return (
+      (typeof window !== 'undefined' && localStorage.getItem('zyntra_google_client_id')) ||
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      ''
+    );
+  });
+  const [gmailInput, setGmailInput] = useState(() => {
+    if (leaderName) {
+      const clean = leaderName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return clean ? clean + '@gmail.com' : '';
+    }
+    return '';
+  });
 
   const sess = load('zyntra_session', null);
   const up = mode === 'up';
@@ -550,6 +620,46 @@ export function SignIn({ evId, onAuth }) {
   };
   const mailOk = /^\S+@\S+\.\S+$/.test(f.email.trim());
   const sc = strength(f.pw);
+
+  const handleGoogleClick = () => {
+    setErr('');
+    const effectiveClientId = (customClientId || GOOGLE_CLIENT_ID || '').trim();
+
+    if (effectiveClientId) {
+      const launched = launchGoogleSignIn({
+        clientId: effectiveClientId,
+        onSuccess: (googleUser) => {
+          store('zyntra_session', googleUser);
+          onAuth(googleUser);
+        },
+        onError: (errMsg) => {
+          setErr(errMsg || 'Google authentication was cancelled.');
+          setGAsk(true);
+        },
+      });
+      if (launched) return;
+    }
+
+    // If client ID is not configured yet, open the Google Sign-In panel
+    setGAsk(true);
+  };
+
+  const handleGmailSubmit = (e) => {
+    e.preventDefault();
+    const cleanMail = gmailInput.trim().toLowerCase();
+    if (!cleanMail || !/^\S+@\S+\.\S+$/.test(cleanMail)) {
+      setErr('Please enter a valid Gmail address (e.g. name@gmail.com).');
+      return;
+    }
+    const displayName = cleanMail.split('@')[0];
+    const u = {
+      email: cleanMail,
+      name: leaderName || displayName.charAt(0).toUpperCase() + displayName.slice(1),
+      isGoogle: true,
+    };
+    store('zyntra_session', u);
+    onAuth(u);
+  };
 
   async function submit(e) {
     e.preventDefault();
@@ -582,10 +692,6 @@ export function SignIn({ evId, onAuth }) {
     } finally {
       setBusy(false);
     }
-  }
-
-  function google() {
-    if (!googleRedirect(evId)) setGAsk(true);
   }
 
   function forgot() {
@@ -636,33 +742,105 @@ export function SignIn({ evId, onAuth }) {
         </button>
       )}
 
-      <button className="gbtn" onClick={google}>
+      <button className="gbtn" type="button" onClick={handleGoogleClick}>
         <GLogo />
         Continue with Google
       </button>
 
       {gAsk && (
-        <div className="fld">
-          <label>Google account email</label>
-          <input
-            type="email"
-            autoFocus
-            placeholder="you@gmail.com"
-            value={f.email}
-            onChange={set('email')}
-          />
-          <button
-            className="btn pri"
-            disabled={!mailOk}
-            onClick={() => {
-              const email = f.email.trim().toLowerCase();
-              const u = { email, name: email.split('@')[0] };
-              store('zyntra_session', u);
-              onAuth(u);
-            }}
-          >
-            Continue
-          </button>
+        <div
+          style={{
+            border: '1px solid rgba(63, 216, 255, 0.4)',
+            borderRadius: 14,
+            padding: '16px',
+            background: 'rgba(5, 14, 38, 0.9)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <GLogo />
+            <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff' }}>
+                Google Sign In
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'rgba(228,244,255,0.7)' }}>
+                Authenticate with your Gmail address
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleGmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Field label="Gmail Address">
+              <input
+                type="email"
+                autoFocus
+                placeholder="yourname@gmail.com"
+                value={gmailInput}
+                onChange={(e) => {
+                  setErr('');
+                  setGmailInput(e.target.value);
+                }}
+                required
+              />
+            </Field>
+
+            <button
+              className="btn pri"
+              type="submit"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '12px',
+              }}
+            >
+              <GLogo />
+              Continue to Payment with Google
+            </button>
+          </form>
+
+          <div style={{ borderTop: '1px solid rgba(140,200,255,0.15)', paddingTop: 8 }}>
+            <button
+              type="button"
+              className="link"
+              onClick={() => setShowConfig(!showConfig)}
+              style={{ fontSize: '0.7rem' }}
+            >
+              {showConfig ? '▲ Hide Google OAuth Client ID setup' : '⚙ Enable Native Google Popup Window'}
+            </button>
+
+            {showConfig && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Field label="Google OAuth Client ID">
+                  <input
+                    value={customClientId}
+                    onChange={(e) => {
+                      setCustomClientId(e.target.value);
+                      localStorage.setItem('zyntra_google_client_id', e.target.value.trim());
+                    }}
+                    placeholder="xxxx.apps.googleusercontent.com"
+                  />
+                </Field>
+                <p className="hint" style={{ fontSize: '0.68rem', lineHeight: 1.4 }}>
+                  Add your Google Cloud Web Client ID here (or set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>.env</code>). When set, clicking &quot;Continue with Google&quot; automatically launches Google&apos;s native OAuth account selector popup!
+                </p>
+                {customClientId && (
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ fontSize: '0.7rem', padding: '6px 12px', alignSelf: 'flex-start' }}
+                    onClick={handleGoogleClick}
+                  >
+                    Test Native Google Popup
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
