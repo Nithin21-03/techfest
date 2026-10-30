@@ -77,16 +77,33 @@ const writeAtomic = (filepath, data) => {
 };
 
 /**
- * Resolve PostgreSQL Connection String from standard cloud provider environment variables
+ * Resolve and auto-sanitize PostgreSQL Connection String from environment variables
  */
 function getConnectionString() {
-  return (
+  const raw =
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.POSTGRES_PRISMA_URL ||
     process.env.SUPABASE_DB_URL ||
-    null
-  );
+    null;
+
+  if (!raw) return null;
+  let str = raw.trim();
+
+  // Auto-sanitize: handles accidental square brackets around passwords or special characters
+  const m = str.match(/^(postgres(?:ql)?:\/\/)([^:]+):(.*)@([^@]+)$/);
+  if (m) {
+    const proto = m[1];
+    const user = m[2];
+    let pwd = m[3];
+    const hostRest = m[4];
+    if (pwd.startsWith('[') && pwd.endsWith(']')) {
+      pwd = pwd.slice(1, -1);
+    }
+    try { pwd = decodeURIComponent(pwd); } catch (_) {}
+    return proto + user + ':' + encodeURIComponent(pwd) + '@' + hostRest;
+  }
+  return str;
 }
 
 /**
