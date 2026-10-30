@@ -8,22 +8,30 @@ const __dirname = path.dirname(__filename);
 
 const { Pool } = pg;
 
-let pool = null;
+// Reusable pool reference across serverless cold/warm invocations
+let pool = globalThis._pgPool || null;
 let isPostgresConnected = false;
+let postgresInitError = null;
 
-const dataDir = path.join(__dirname, 'data');
+// Determine environment
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const dataDir = isServerless ? path.join('/tmp', 'zyntra_data') : path.join(__dirname, 'data');
 const registrationsFile = path.join(dataDir, 'registrations.json');
 const sponsorInquiriesFile = path.join(dataDir, 'sponsor_inquiries.json');
 
-// Ensure local storage directory and files exist
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-if (!fs.existsSync(registrationsFile)) {
-  fs.writeFileSync(registrationsFile, JSON.stringify([], null, 2));
-}
-if (!fs.existsSync(sponsorInquiriesFile)) {
-  fs.writeFileSync(sponsorInquiriesFile, JSON.stringify([], null, 2));
+// Ensure local storage directory and files exist (handles /tmp in serverless)
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  if (!fs.existsSync(registrationsFile)) {
+    fs.writeFileSync(registrationsFile, JSON.stringify([], null, 2));
+  }
+  if (!fs.existsSync(sponsorInquiriesFile)) {
+    fs.writeFileSync(sponsorInquiriesFile, JSON.stringify([], null, 2));
+  }
+} catch (fsErr) {
+  console.warn('Storage directory initialization notice:', fsErr.message);
 }
 
 // In-memory data store for ultra-fast, zero-lock reads under high traffic
@@ -31,15 +39,19 @@ let memoryRegistrations = [];
 let memorySponsors = [];
 
 try {
-  const regRaw = fs.readFileSync(registrationsFile, 'utf8');
-  memoryRegistrations = JSON.parse(regRaw || '[]');
+  if (fs.existsSync(registrationsFile)) {
+    const regRaw = fs.readFileSync(registrationsFile, 'utf8');
+    memoryRegistrations = JSON.parse(regRaw || '[]');
+  }
 } catch (e) {
   memoryRegistrations = [];
 }
 
 try {
-  const sponRaw = fs.readFileSync(sponsorInquiriesFile, 'utf8');
-  memorySponsors = JSON.parse(sponRaw || '[]');
+  if (fs.existsSync(sponsorInquiriesFile)) {
+    const sponRaw = fs.readFileSync(sponsorInquiriesFile, 'utf8');
+    memorySponsors = JSON.parse(sponRaw || '[]');
+  }
 } catch (e) {
   memorySponsors = [];
 }
@@ -49,42 +61,62 @@ let cachedStats = null;
 let statsCachedAt = 0;
 const STATS_TTL = 10000; // 10s
 
-// Atomic write helper using temporary file + rename to prevent corruption under load
+// Safe atomic file write helper with in-memory fallback
 const writeAtomic = (filepath, data) => {
-  const tempPath = `${filepath}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`;
   try {
+    const tempPath = `${filepath}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
     fs.renameSync(tempPath, filepath);
   } catch (err) {
-    console.error(`Atomic write failed for ${filepath}:`, err.message);
-    // Cleanup temp if it exists
-    if (fs.existsSync(tempPath)) {
-      try { fs.unlinkSync(tempPath); } catch (_) {}
+    try {
+      fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (fallbackErr) {
+      console.warn(`Local file write bypassed (${filepath}):`, fallbackErr.message);
     }
-    // Fallback direct write
-    fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
   }
 };
 
+/**
+ * Resolve PostgreSQL Connection String from standard cloud provider environment variables
+ */
+function getConnectionString() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.SUPABASE_DB_URL ||
+    null
+  );
+}
+
+/**
+ * Initialize Cloud Database (PostgreSQL / Supabase / Neon / Vercel Postgres)
+ */
 export async function initializeDatabase() {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = getConnectionString();
 
   if (connectionString) {
     try {
-      console.log('Connecting to PostgreSQL database...');
-      pool = new Pool({
-        connectionString,
-        ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
-        max: 20, // Connection pool size for high concurrency
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-      });
+      console.log('Connecting to Cloud PostgreSQL database...');
+
+      // Reuse existing pool if already connected in warm serverless container
+      if (!pool) {
+        const useSsl = process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false };
+        pool = new Pool({
+          connectionString,
+          ssl: useSsl,
+          max: isServerless ? 5 : 20, // Conservative pool size for serverless
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 10000,
+        });
+        globalThis._pgPool = pool;
+      }
 
       // Test connection
       const client = await pool.connect();
       console.log('Successfully connected to PostgreSQL cluster.');
 
-      // Initialize table with constraints & indexes
+      // 1. Create registrations table with complete fields
       await client.query(`
         CREATE TABLE IF NOT EXISTS registrations (
           id SERIAL PRIMARY KEY,
@@ -94,22 +126,61 @@ export async function initializeDatabase() {
           email VARCHAR(150) NOT NULL,
           phone VARCHAR(20) NOT NULL,
           student_id VARCHAR(50) NOT NULL,
+          department VARCHAR(100),
+          semester VARCHAR(50),
           event_id VARCHAR(100) NOT NULL,
           event_name VARCHAR(200) NOT NULL,
           team_name VARCHAR(150),
           team_members JSONB DEFAULT '[]'::jsonb,
+          members_detail JSONB DEFAULT '[]'::jsonb,
+          project_title VARCHAR(250),
+          project_category VARCHAR(150),
+          technologies VARCHAR(250),
+          project_abstract TEXT,
+          mentor_name VARCHAR(150),
+          project_link VARCHAR(300),
+          payment_mode VARCHAR(60),
+          transaction_ref VARCHAR(100),
+          payment_date VARCHAR(50),
+          amount_paid VARCHAR(50),
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           status VARCHAR(50) DEFAULT 'CONFIRMED',
           CONSTRAINT unique_email_event UNIQUE (email, event_id)
         );
       `);
 
+      // 2. Safely add any missing columns to existing tables without breaking data
+      const alterQueries = [
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS department VARCHAR(100);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS semester VARCHAR(50);',
+        "ALTER TABLE registrations ADD COLUMN IF NOT EXISTS members_detail JSONB DEFAULT '[]'::jsonb;",
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS project_title VARCHAR(250);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS project_category VARCHAR(150);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS technologies VARCHAR(250);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS project_abstract TEXT;',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS mentor_name VARCHAR(150);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS project_link VARCHAR(300);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(60);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS transaction_ref VARCHAR(100);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS payment_date VARCHAR(50);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS amount_paid VARCHAR(50);',
+      ];
+
+      for (const query of alterQueries) {
+        try {
+          await client.query(query);
+        } catch (_) {}
+      }
+
+      // 3. Create high-performance indexes
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations(event_id);
         CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(email);
         CREATE INDEX IF NOT EXISTS idx_registrations_ticket_id ON registrations(ticket_id);
+        CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at DESC);
       `);
 
+      // 4. Create sponsor_inquiries table
       await client.query(`
         CREATE TABLE IF NOT EXISTS sponsor_inquiries (
           id SERIAL PRIMARY KEY,
@@ -124,12 +195,18 @@ export async function initializeDatabase() {
         );
       `);
 
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_sponsors_tier ON sponsor_inquiries(tier_interest);
+      `);
+
       client.release();
       isPostgresConnected = true;
+      postgresInitError = null;
       return { type: 'postgresql', connected: true };
     } catch (err) {
-      console.warn('PostgreSQL connection attempt failed. Operating in High-Performance Local Persistent Engine:', err.message);
+      console.warn('PostgreSQL connection failed. Falling back to Persistent Engine:', err.message);
       isPostgresConnected = false;
+      postgresInitError = err.message;
       return { type: 'fallback_storage', connected: true, reason: err.message };
     }
   } else {
@@ -138,6 +215,9 @@ export async function initializeDatabase() {
   }
 }
 
+/**
+ * Register participant into PostgreSQL Cloud Database or fallback storage
+ */
 export async function registerParticipant(data) {
   const {
     ticketId,
@@ -146,10 +226,23 @@ export async function registerParticipant(data) {
     email,
     phone,
     studentId,
+    department,
+    semester,
     eventId,
     eventName,
     teamName,
     teamMembers,
+    membersDetail,
+    projectTitle,
+    projectCategory,
+    technologies,
+    projectAbstract,
+    mentorName,
+    projectLink,
+    paymentMode,
+    transactionRef,
+    paymentDate,
+    amountPaid,
   } = data;
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -157,15 +250,31 @@ export async function registerParticipant(data) {
   // Invalidate stats cache on new registration
   cachedStats = null;
 
+  // Ensure DB is initialized if not yet connected
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
   if (isPostgresConnected && pool) {
     try {
       const query = `
-        INSERT INTO registrations 
-          (ticket_id, full_name, college, email, phone, student_id, event_id, event_name, team_name, team_members)
-        VALUES 
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING *;
+        INSERT INTO registrations (
+          ticket_id, full_name, college, email, phone, student_id,
+          department, semester, event_id, event_name, team_name,
+          team_members, members_detail, project_title, project_category,
+          technologies, project_abstract, mentor_name, project_link,
+          payment_mode, transaction_ref, payment_date, amount_paid, status
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11,
+          $12, $13, $14, $15,
+          $16, $17, $18, $19,
+          $20, $21, $22, $23, $24
+        ) RETURNING *;
       `;
+
       const values = [
         ticketId,
         fullName,
@@ -173,10 +282,24 @@ export async function registerParticipant(data) {
         normalizedEmail,
         phone.trim(),
         studentId.trim(),
+        department || 'Computer Science & Engineering',
+        semester || '6th Semester',
         eventId,
         eventName,
-        teamName || null,
+        teamName || projectTitle || 'Project Team',
         JSON.stringify(teamMembers || []),
+        JSON.stringify(membersDetail || []),
+        projectTitle || '',
+        projectCategory || eventName,
+        technologies || '',
+        projectAbstract || '',
+        mentorName || '',
+        projectLink || '',
+        paymentMode || 'UPI / QR Code',
+        transactionRef || 'DEMO-UTR',
+        paymentDate || new Date().toISOString().split('T')[0],
+        amountPaid || '₹ 500',
+        'CONFIRMED',
       ];
 
       const res = await pool.query(query, values);
@@ -205,39 +328,48 @@ export async function registerParticipant(data) {
       email: normalizedEmail,
       phone: phone.trim(),
       student_id: studentId.trim(),
-      department: data.department || 'Computer Science & Engineering',
-      semester: data.semester || '6th Semester',
+      department: department || 'Computer Science & Engineering',
+      semester: semester || '6th Semester',
       event_id: eventId,
       event_name: eventName,
-      team_name: teamName || data.projectTitle || 'Project Team',
+      team_name: teamName || projectTitle || 'Project Team',
       team_members: teamMembers || [],
-      members_detail: data.membersDetail || [],
-      project_title: data.projectTitle || '',
-      project_category: data.projectCategory || '',
-      technologies: data.technologies || '',
-      project_abstract: data.projectAbstract || '',
-      mentor_name: data.mentorName || '',
-      project_link: data.projectLink || '',
-      payment_mode: data.paymentMode || 'UPI / QR Code',
-      transaction_ref: data.transactionRef || '',
-      payment_date: data.paymentDate || new Date().toISOString().split('T')[0],
-      amount_paid: data.amountPaid || '₹ 500',
+      members_detail: membersDetail || [],
+      project_title: projectTitle || '',
+      project_category: projectCategory || '',
+      technologies: technologies || '',
+      project_abstract: projectAbstract || '',
+      mentor_name: mentorName || '',
+      project_link: projectLink || '',
+      payment_mode: paymentMode || 'UPI / QR Code',
+      transaction_ref: transactionRef || '',
+      payment_date: paymentDate || new Date().toISOString().split('T')[0],
+      amount_paid: amountPaid || '₹ 500',
       created_at: new Date().toISOString(),
       status: 'CONFIRMED',
     };
 
     memoryRegistrations.push(newRecord);
-    // Write atomically to disk
     writeAtomic(registrationsFile, memoryRegistrations);
 
     return { success: true, record: newRecord, storage: 'persistent_storage' };
   }
 }
 
+/**
+ * Get aggregated statistics for public counters and telemetry
+ */
 export async function getRegistrationsSummary(isAdmin = false) {
   const now = Date.now();
   if (cachedStats && now - statsCachedAt < STATS_TTL && !isAdmin) {
     return cachedStats;
+  }
+
+  // Ensure DB initialized if connection string is present
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
   }
 
   let result;
@@ -251,7 +383,6 @@ export async function getRegistrationsSummary(isAdmin = false) {
       'SELECT ticket_id, full_name, college, event_name, created_at FROM registrations ORDER BY created_at DESC LIMIT 10;'
     );
 
-    // Mask names if not admin
     const recent = recentRes.rows.map((r) => ({
       ticket_id: isAdmin ? r.ticket_id : `${r.ticket_id.substring(0, 8)}***`,
       full_name: isAdmin ? r.full_name : maskName(r.full_name),
@@ -304,7 +435,6 @@ export async function getRegistrationsSummary(isAdmin = false) {
   return result;
 }
 
-// Name masking for GDPR / security
 function maskName(name) {
   if (!name) return 'Anonymous';
   const parts = name.trim().split(' ');
@@ -312,8 +442,17 @@ function maskName(name) {
   return `${parts[0]} ${parts[parts.length - 1].substring(0, 1)}.`;
 }
 
+/**
+ * Submit sponsor inquiries into database
+ */
 export async function submitSponsorInquiry(data) {
   const { companyName, contactPerson, email, phone, tierInterest, message } = data;
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
 
   if (isPostgresConnected && pool) {
     const query = `
@@ -329,7 +468,7 @@ export async function submitSponsorInquiry(data) {
       tierInterest,
       message || '',
     ]);
-    return { success: true, record: res.rows[0] };
+    return { success: true, record: res.rows[0], storage: 'postgresql' };
   } else {
     const record = {
       id: memorySponsors.length + 1,
@@ -344,18 +483,31 @@ export async function submitSponsorInquiry(data) {
     };
     memorySponsors.push(record);
     writeAtomic(sponsorInquiriesFile, memorySponsors);
-    return { success: true, record };
+    return { success: true, record, storage: 'persistent_storage' };
   }
 }
 
+/**
+ * Retrieve all registrations for Admin Command Center
+ */
 export async function getAllRegistrationsForAdmin() {
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
   if (isPostgresConnected && pool) {
     const res = await pool.query(`
       SELECT 
         id, ticket_id, full_name, college, email, phone, student_id,
-        event_id, event_name, team_name, team_members, created_at, status
+        department, semester, event_id, event_name, team_name,
+        team_members, members_detail, project_title, project_category,
+        technologies, project_abstract, mentor_name, project_link,
+        payment_mode, transaction_ref, payment_date, amount_paid,
+        created_at, status
       FROM registrations 
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC;
     `);
     return res.rows;
   } else {
@@ -363,10 +515,27 @@ export async function getAllRegistrationsForAdmin() {
   }
 }
 
+/**
+ * Returns diagnostic status of database connection
+ */
 export function getDatabaseStatus() {
+  const connStr = getConnectionString();
+  let provider = 'Local Storage Engine';
+  if (connStr) {
+    if (connStr.includes('supabase')) provider = 'Supabase PostgreSQL';
+    else if (connStr.includes('neon')) provider = 'Neon Serverless PostgreSQL';
+    else if (connStr.includes('vercel')) provider = 'Vercel Postgres';
+    else provider = 'PostgreSQL Cloud Database';
+  }
+
   return {
     isPostgresConnected,
-    mode: isPostgresConnected ? 'PostgreSQL High-Concurrency Cluster' : 'Atomic In-Memory Persistent Storage Engine',
+    mode: isPostgresConnected ? `PostgreSQL Cloud Cluster (${provider})` : 'Atomic In-Memory Persistent Engine',
+    provider,
+    isServerless,
+    hasConnectionString: Boolean(connStr),
+    initError: postgresInitError,
     cachedRecords: memoryRegistrations.length,
+    timestamp: new Date().toISOString(),
   };
 }

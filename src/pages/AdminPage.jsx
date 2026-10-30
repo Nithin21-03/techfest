@@ -20,9 +20,12 @@ import {
   EyeOff,
   Filter,
   FileSpreadsheet,
+  Database,
+  Server,
 } from 'lucide-react';
 import { festConfig } from '../config/festConfig';
 import { soundFX } from '../utils/audioSynth';
+import { fetchFromCloudDirectly, checkDatabaseHealth, isSupabaseConfigured } from '../services/dbClient';
 
 export default function AdminPage({ onNavigateHome }) {
   const [token, setToken] = useState(() => {
@@ -41,6 +44,7 @@ export default function AdminPage({ onNavigateHome }) {
   const [registrations, setRegistrations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [dbStatus, setDbStatus] = useState(null);
 
   // Filtering & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,6 +117,11 @@ export default function AdminPage({ onNavigateHome }) {
     setIsLoading(true);
     setFetchError('');
 
+    // Fetch database connection health diagnostic
+    checkDatabaseHealth().then((status) => {
+      if (status) setDbStatus(status);
+    });
+
     let backendRecords = [];
     try {
       const res = await fetch('/api/admin/registrations', {
@@ -126,7 +135,19 @@ export default function AdminPage({ onNavigateHome }) {
         backendRecords = data.registrations || [];
       }
     } catch (err) {
-      console.warn('Backend server offline. Displaying local registration records.');
+      console.warn('Backend server offline. Checking cloud and local storage.');
+    }
+
+    // If backend didn't return records, try direct Supabase if configured
+    if (backendRecords.length === 0 && isSupabaseConfigured) {
+      try {
+        const cloudRecords = await fetchFromCloudDirectly();
+        if (cloudRecords && cloudRecords.length > 0) {
+          backendRecords = cloudRecords;
+        }
+      } catch (cloudErr) {
+        console.warn('Direct cloud fetch error:', cloudErr.message);
+      }
     }
 
     // Also merge any local registrations stored in localStorage
@@ -432,6 +453,31 @@ export default function AdminPage({ onNavigateHome }) {
                 <p className="text-xs sm:text-sm text-white/60 font-mono tracking-wide mt-1">
                   Sapthagiri NPS University // ZYNTRA '26 Candidate Master Ledger
                 </p>
+
+                {/* Database Connectivity Status Badge */}
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <div
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-mono border ${
+                      dbStatus?.isPostgresConnected
+                        ? 'bg-emerald-950/40 border-emerald-400/40 text-emerald-300'
+                        : 'bg-amber-950/40 border-amber-400/40 text-amber-300'
+                    }`}
+                  >
+                    <Database size={13} className={dbStatus?.isPostgresConnected ? 'text-emerald-400' : 'text-amber-400'} />
+                    <span>
+                      {dbStatus?.isPostgresConnected
+                        ? `CLOUD DB: ${dbStatus.provider || 'PostgreSQL Connected'}`
+                        : 'STORAGE: Local Persistent Engine (Cloud Ready)'}
+                    </span>
+                  </div>
+
+                  {dbStatus?.isServerless && (
+                    <span className="text-[10px] font-mono text-cyan-300/80 bg-cyan-950/40 border border-cyan-400/30 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Server size={11} />
+                      Vercel Serverless
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Action Buttons */}

@@ -37,6 +37,7 @@ import confetti from 'canvas-confetti';
 import { festConfig } from '../config/festConfig';
 import { soundFX } from '../utils/audioSynth';
 import CyberTiltCard from '../components/CyberTiltCard';
+import { saveToCloudDirectly, isSupabaseConfigured } from '../services/dbClient';
 
 const STORAGE_DRAFT_KEY = 'zyntra_registration_draft';
 const STORAGE_LOCAL_REGS_KEY = 'zyntra_local_registrations';
@@ -470,14 +471,31 @@ export default function RegistrationPage({ initialEventId, onNavigateHome }) {
         if (response.ok) {
           serverResponseData = await response.json();
         } else {
-          const errData = await response.json();
+          let errData = {};
+          try {
+            errData = await response.json();
+          } catch (_) {}
           if (response.status === 409) {
-            throw new Error(errData.error || 'This email or team is already registered.');
+            throw new Error(errData.error || 'This email or team is already registered for this arena.');
           }
+          throw new Error(errData.error || `Server responded with status ${response.status}`);
         }
       } catch (networkErr) {
-        // Fallback gracefully if backend is offline
-        console.warn('Backend unavailable, saving locally:', networkErr.message);
+        if (networkErr.message && networkErr.message.includes('already registered')) {
+          throw networkErr;
+        }
+        console.warn('Backend unavailable, attempting direct cloud database or local fallback:', networkErr.message);
+
+        // Fallback: If direct Supabase is configured in frontend, save directly to cloud!
+        if (isSupabaseConfigured) {
+          try {
+            const fallbackTicketId = `ZYN26-TEAM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            await saveToCloudDirectly({ ...payload, ticketId: fallbackTicketId });
+            serverResponseData = { ticketId: fallbackTicketId, storage: 'supabase_direct' };
+          } catch (supaErr) {
+            console.warn('Direct cloud database write error:', supaErr.message);
+          }
+        }
       }
 
       // Generate Ticket ID if server was offline
