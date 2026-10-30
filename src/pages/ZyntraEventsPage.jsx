@@ -26,10 +26,10 @@ export const SLOTS = [
     events: [
       mk(
         'paper',
-        'Project / Paper Inspo',
+        'Project / Paper Presentation',
         'Present an idea that inspires.',
         'Showcase an original project or research paper before a panel and get feedback on its impact and novelty.',
-        '1–3 members',
+        '1–4 members',
         [
           'Presentation time: 7 minutes + 3 minutes Q&A.',
           'Bring your slides as PDF or PPT.',
@@ -40,7 +40,7 @@ export const SLOTS = [
         'Prompt Detection + Pixel Art',
         'Decode the prompt. Draw the pixels.',
         'Round 1: guess the prompt behind AI-generated outputs. Round 2: recreate a theme as pixel art.',
-        '1–2 members',
+        '1–4 members',
         [
           'Round 1 is a timed quiz; top teams advance.',
           'Round 2 pixel canvas size is announced on the spot.',
@@ -62,7 +62,7 @@ export const SLOTS = [
       ),
       mk(
         'debug',
-        'Debugging Competition',
+        'System Design',
         'Find the bug. Fix it fast.',
         'Broken programs, ticking clock. Identify and fix the most bugs across escalating levels.',
         'Individual or pairs',
@@ -80,7 +80,7 @@ export const SLOTS = [
     events: [
       mk(
         'escape',
-        'Individual Escape Room',
+        'Escape Room',
         'One room. One mind. One way out.',
         'Solve puzzles and locks alone to escape before the timer ends. Fastest escape wins.',
         'Individual',
@@ -170,15 +170,15 @@ export const PAY = {
   payee: 'ZYNTRA’26',
   qr: '',
   fee: {
-    paper: 100,
-    prompt: 100,
-    crime: 100,
+    paper: 200,
+    prompt: 150,
+    crime: 250,
     debug: 100,
-    escape: 100,
-    wiki: 100,
-    pitch: 100,
-    treasure: 100,
-    ui: 100,
+    escape: 250,
+    wiki: 150,
+    pitch: 150,
+    treasure: 250,
+    ui: 150,
   },
 };
 
@@ -199,7 +199,7 @@ export const DETAILS = [
 function store(k, v) {
   try {
     localStorage.setItem(k, JSON.stringify(v));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function load(k, d) {
@@ -305,7 +305,7 @@ function googleRedirect(evId) {
   let top = false;
   try {
     top = window.top === window;
-  } catch (e) {}
+  } catch (e) { }
   if (top) {
     window.location.assign(url);
   } else {
@@ -700,8 +700,8 @@ export function SignIn({ evId, onAuth, leaderName = '' }) {
       return setErr('Enter your email above first, then press Forgot password.');
     setMsg(
       'If an account exists for ' +
-        email +
-        ', the organisers will help you reset it. Contact them with this email address.'
+      email +
+      ', the organisers will help you reset it. Contact them with this email address.'
     );
   }
 
@@ -1004,8 +1004,8 @@ export function Flow({ ev, onDone, close, user }) {
 
   const upi = PAY.upi
     ? `upi://pay?pa=${encodeURIComponent(PAY.upi)}&pn=${encodeURIComponent(
-        PAY.payee
-      )}&am=${fee}&cu=INR&tn=${encodeURIComponent(ev.name)}`
+      PAY.payee
+    )}&am=${fee}&cu=INR&tn=${encodeURIComponent(ev.name)}`
     : '';
 
   const setMem = (i, k, v) =>
@@ -1081,13 +1081,13 @@ export function Flow({ ev, onDone, close, user }) {
         timestamp: new Date().toISOString(),
       });
       localStorage.setItem('zyntra_local_registrations', JSON.stringify(localList));
-    } catch (lsErr) {}
+    } catch (lsErr) { }
 
     // Complete workflow callback
     onDone({ email, ...d, txn, fee, ticketId: genTicket });
     try {
       localStorage.removeItem(draftKey);
-    } catch (e) {}
+    } catch (e) { }
 
     setIsSubmitting(false);
     setStep(5);
@@ -1103,9 +1103,9 @@ export function Flow({ ev, onDone, close, user }) {
         <span className="label">
           {step < 5
             ? 'Step ' +
-              (bar + 1) +
-              ' of 4 · ' +
-              (step === 3 ? 'Sign in' : step === 4 ? 'Payment' : STEPS[step])
+            (bar + 1) +
+            ' of 4 · ' +
+            (step === 3 ? 'Sign in' : step === 4 ? 'Payment' : STEPS[step])
             : 'Registration complete'}
         </span>
         <h2 className="big" style={{ margin: '10px 0 16px' }}>
@@ -1339,11 +1339,11 @@ export function Flow({ ev, onDone, close, user }) {
               rows={d.members.map((m, i) => [
                 'Member ' + (i + 2),
                 m.name +
-                  ' · ' +
-                  m.phone +
-                  ' · ' +
-                  m.roll +
-                  (m.dept ? ' · ' + m.dept : ''),
+                ' · ' +
+                m.phone +
+                ' · ' +
+                m.roll +
+                (m.dept ? ' · ' + m.dept : ''),
               ])}
             />
           )}
@@ -1674,7 +1674,7 @@ export default function ZyntraEventsPage({ onOpenAdmin }) {
       const id = load('zyntra_pending', null);
       const e = ALL.find((x) => x.id === id);
       if (e) setForm(e);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   useEffect(() => {
@@ -1687,7 +1687,7 @@ export default function ZyntraEventsPage({ onOpenAdmin }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
       window.history.replaceState(null, '', id ? '#' + id : '#');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const ev = ALL.find((e) => e.id === view);
@@ -1717,8 +1717,8 @@ export default function ZyntraEventsPage({ onOpenAdmin }) {
               onOpenAdmin
                 ? onOpenAdmin
                 : () => {
-                    window.location.hash = '#admin';
-                  }
+                  window.location.hash = '#admin';
+                }
             }
             style={{
               display: 'flex',
