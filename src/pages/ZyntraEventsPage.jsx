@@ -1553,63 +1553,258 @@ export function Flow({ ev, onDone, close, user }) {
       )}
 
       {step === 4 && (
-        <div className="glass panel">
-          <h3>Payment</h3>
-          <div className="sum">
-            <span>{ev.name}</span>
-            <span>{d.team || d.leader}</span>
+        <div className="glass panel" style={{ maxWidth: 540, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(140,200,255,0.15)', paddingBottom: 14 }}>
+            <div>
+              <span className="label" style={{ fontSize: '0.65rem' }}>Final Step · Official UPI Payment</span>
+              <h3 style={{ margin: '4px 0 0', fontSize: '1.25rem' }}>{ev.name}</h3>
+            </div>
+            <div className="amt" style={{ fontSize: '2rem', margin: 0 }}>₹{fee}</div>
           </div>
-          <div className="sum">
-            <span>Signed in as</span>
-            <span>{email}</span>
+
+          <div className="sum" style={{ marginTop: 12 }}>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(228,244,255,0.5)' }}>Candidate / Team</span>
+              <b style={{ color: '#fff' }}>{d.team || d.leader}</b>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(228,244,255,0.5)' }}>Verified Google ID</span>
+              <b style={{ color: '#3fd8ff', fontSize: '0.82rem' }}>{email}</b>
+            </div>
           </div>
-          <div className="amt">₹{fee}</div>
-          {PAY.qr && (
-            <img
-              src={PAY.qr}
-              alt="UPI QR"
+
+          {/* Google Pay / UPI Scanner Card */}
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 18,
+              padding: '20px',
+              textAlign: 'center',
+              boxShadow: '0 12px 35px rgba(0, 0, 0, 0.5)',
+              color: '#202124',
+              marginTop: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+              <GLogo />
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.02em', color: '#1f1f1f' }}>
+                Google Pay / BHIM UPI Scanner
+              </span>
+            </div>
+
+            <div
               style={{
-                width: 200,
-                maxWidth: '100%',
-                margin: '0 auto',
-                borderRadius: 12,
+                display: 'inline-block',
+                padding: 10,
                 background: '#fff',
-                padding: 8,
+                borderRadius: 16,
+                border: '2px solid #e0e0e0',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
               }}
-            />
-          )}
-          {upi ? (
-            <>
-              <a
-                className="btn pri"
-                style={{ textAlign: 'center' }}
-                href={upi}
+            >
+              <img
+                src={qrImg}
+                alt="Google Pay UPI QR Code"
+                style={{ width: 210, height: 210, display: 'block', borderRadius: 8 }}
+              />
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a73e8' }}>
+                Scan with Google Pay, PhonePe, or Paytm
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#5f6368', marginTop: 2 }}>
+                Exact payable fee: <strong>₹{fee}</strong>
+              </div>
+            </div>
+
+            {/* UPI ID Row with Copy Button */}
+            <div
+              style={{
+                marginTop: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: '#f8f9fa',
+                borderRadius: 10,
+                border: '1px solid #dadce0',
+                fontSize: '0.8rem',
+              }}
+            >
+              <span style={{ color: '#3c4043', fontFamily: 'monospace', fontWeight: 600 }}>
+                {defaultUpi}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(defaultUpi);
+                  setCopiedUpi(true);
+                  setTimeout(() => setCopiedUpi(false), 2000);
+                }}
+                style={{
+                  background: copiedUpi ? '#34a853' : '#1a73e8',
+                  color: '#fff',
+                  border: 0,
+                  borderRadius: 6,
+                  padding: '5px 10px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
               >
-                Pay with UPI app
-              </a>
-              <p className="hint" style={{ textAlign: 'center' }}>
-                UPI ID: {PAY.upi}
-              </p>
-            </>
-          ) : (
-            <p className="hint" style={{ textAlign: 'center' }}>
-              Standard entry fee: ₹{fee}. Enter your UPI payment / UTR reference below.
-            </p>
-          )}
-          <Field label="Transaction / UTR number">
-            <input
-              value={txn}
-              onChange={(e) => setTxn(e.target.value)}
-              placeholder="Enter 12-digit UTR or Txn ID after paying"
-            />
-          </Field>
-          <div className="row">
+                {copiedUpi ? '✓ Copied' : 'Copy UPI'}
+              </button>
+            </div>
+
+            {/* Direct Pay link for mobile devices */}
+            <a
+              href={upi}
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '11px 16px',
+                background: 'linear-gradient(135deg, #1a73e8, #0b57d0)',
+                color: '#fff',
+                borderRadius: 10,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                boxShadow: '0 4px 14px rgba(26,115,232,0.3)',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <line x1="12" y1="18" x2="12.01" y2="18" />
+              </svg>
+              Open in Google Pay / UPI App
+            </a>
+          </div>
+
+          {/* Form Fields: UTR and Screenshot */}
+          <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="fld">
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>12-Digit Transaction / UTR Number</span>
+                <small style={{ color: 'rgba(228,244,255,0.5)', textTransform: 'none', fontSize: '0.68rem' }}>
+                  From GPay / Bank receipt
+                </small>
+              </label>
+              <input
+                value={txn}
+                onChange={(e) => setTxn(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                placeholder="e.g. 412356789012"
+                maxLength={24}
+                style={{ fontSize: '0.95rem', letterSpacing: '0.08em', fontWeight: 600 }}
+              />
+            </div>
+
+            {/* Payment Screenshot Upload */}
+            <div className="fld">
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Payment Screenshot / Receipt</span>
+                <small style={{ color: '#3fd8ff', textTransform: 'none', fontSize: '0.68rem' }}>
+                  Required for verification
+                </small>
+              </label>
+
+              {!screenshot ? (
+                <label
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '20px 16px',
+                    border: '1.5px dashed rgba(63, 216, 255, 0.45)',
+                    borderRadius: 12,
+                    background: 'rgba(4, 12, 34, 0.6)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#3fd8ff')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(63, 216, 255, 0.45)')}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshotChange}
+                    style={{ display: 'none' }}
+                  />
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3fd8ff" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 600 }}>
+                    Click to upload GPay / UPI receipt screenshot
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(228,244,255,0.5)' }}>
+                    PNG, JPG, or WEBP up to 8MB
+                  </span>
+                </label>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    background: 'rgba(63, 216, 255, 0.08)',
+                    border: '1px solid rgba(63, 216, 255, 0.35)',
+                  }}
+                >
+                  <img
+                    src={screenshot}
+                    alt="Receipt Thumbnail"
+                    style={{ width: 50, height: 50, borderRadius: 8, objectFit: 'cover', border: '1px solid #3fd8ff' }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.82rem', color: '#5df2b5', fontWeight: 600 }}>
+                      ✓ Screenshot attached
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(228,244,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {screenshotName || 'payment_proof.jpg'}
+                    </div>
+                  </div>
+                  <label
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgba(228,244,255,0.3)',
+                      color: '#fff',
+                      fontSize: '0.72rem',
+                      padding: '6px 10px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Change
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotChange}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="row" style={{ marginTop: 22 }}>
             <button
               className="btn pri"
               disabled={txn.trim().length < 6 || isSubmitting}
               onClick={handleConfirmRegistration}
+              style={{ flex: 1 }}
             >
-              {isSubmitting ? 'Syncing with Database…' : 'Confirm payment & Register'}
+              {isSubmitting ? 'Verifying & Syncing…' : 'Confirm payment & Register'}
             </button>
             <button className="mini" onClick={() => setStep(3)}>
               Back

@@ -202,6 +202,36 @@ export default function AdminPage({ onNavigateHome }) {
       };
     };
 
+    
+  const togglePaymentVerification = (ticketId) => {
+    soundFX.playClick();
+    setRegistrations((prev) =>
+      prev.map((r) => {
+        if (r.ticket_id === ticketId) {
+          const nextStatus = r.status === 'VERIFIED' ? 'PENDING' : 'VERIFIED';
+          return { ...r, status: nextStatus };
+        }
+        return r;
+      })
+    );
+
+    setSelectedRecord((prev) => {
+      if (!prev || prev.ticket_id !== ticketId) return prev;
+      return { ...prev, status: prev.status === 'VERIFIED' ? 'PENDING' : 'VERIFIED' };
+    });
+
+    try {
+      const local = JSON.parse(localStorage.getItem('zyntra_local_registrations') || '[]');
+      const updated = local.map((item) => {
+        if ((item.ticket_id || item.id) === ticketId) {
+          return { ...item, status: item.status === 'VERIFIED' ? 'PENDING' : 'VERIFIED' };
+        }
+        return item;
+      });
+      localStorage.setItem('zyntra_local_registrations', JSON.stringify(updated));
+    } catch (_) {}
+  };
+
     const combinedMap = new Map();
     [...backendRecords, ...localList].forEach((item) => {
       if (item) {
@@ -610,7 +640,7 @@ export default function AdminPage({ onNavigateHome }) {
                   <tbody className="divide-y divide-white/10">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={9} className="px-6 py-12 text-center text-white/40">
+                        <td colSpan={10} className="px-6 py-12 text-center text-white/40">
                           <div className="flex items-center justify-center gap-2">
                             <span className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                             <span>QUERYING NEURAL DATABASE...</span>
@@ -619,7 +649,7 @@ export default function AdminPage({ onNavigateHome }) {
                       </tr>
                     ) : filteredRegistrations.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-6 py-12 text-center text-white/40">
+                        <td colSpan={10} className="px-6 py-12 text-center text-white/40">
                           No registrations found matching the search criteria.
                         </td>
                       </tr>
@@ -762,6 +792,60 @@ export default function AdminPage({ onNavigateHome }) {
                           {selectedRecord.created_at ? new Date(selectedRecord.created_at).toLocaleString() : 'N/A'}
                         </span>
                       </div>
+                    </div>
+
+                    
+                    {/* Payment Verification Card */}
+                    <div className="pt-3 border-t border-white/10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-white/40 uppercase block">UTR / Txn Ref</span>
+                          <span className="text-cyan-300 font-mono font-bold text-sm block">
+                            {selectedRecord.transaction_ref || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-white/40 uppercase block">Amount Paid</span>
+                          <span className="text-white font-bold text-sm block">
+                            {selectedRecord.amount_paid || '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => togglePaymentVerification(selectedRecord.ticket_id)}
+                        className={`w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border cursor-pointer transition-all ${
+                          selectedRecord.status === 'VERIFIED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
+                        }`}
+                      >
+                        {selectedRecord.status === 'VERIFIED' ? '✓ PAYMENT VERIFIED (CLICK TO REVOKE)' : '⏳ MARK AS PAYMENT VERIFIED'}
+                      </button>
+
+                      {selectedRecord.payment_proof && selectedRecord.payment_proof.startsWith('data:image') && (
+                        <div>
+                          <span className="text-[10px] text-cyan-400 uppercase font-bold block mb-1">
+                            Candidate Payment Screenshot:
+                          </span>
+                          <div className="bg-black/80 rounded-xl p-2 border border-white/20 text-center">
+                            <img
+                              src={selectedRecord.payment_proof}
+                              alt="Payment Receipt"
+                              className="max-h-60 mx-auto rounded-lg object-contain"
+                            />
+                            <a
+                              href={selectedRecord.payment_proof}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-cyan-400 underline block mt-2"
+                            >
+                              Open Full Screenshot in New Tab ↗
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {selectedRecord.team_name && (
