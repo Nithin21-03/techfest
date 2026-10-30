@@ -597,29 +597,283 @@ export function Detail({ ev, regs, onRegister, onCancel, back }) {
   );
 }
 
-export function SignIn({ evId, onAuth, leaderName = '' }) {
+
+export function GoogleAuthPopup({ isOpen, onClose, leaderName, leaderEmail, onSelectAccount }) {
+  const [loadingEmail, setLoadingEmail] = useState(null);
+  const [showOther, setShowOther] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+
+  if (!isOpen) return null;
+
+  const defaultAccount = {
+    name: leaderName || 'Google User',
+    email: (leaderEmail || (leaderName ? leaderName.toLowerCase().replace(/[^a-z0-9]/g, '') + '@gmail.com' : 'candidate@gmail.com')).toLowerCase(),
+  };
+
+  const handleSelect = (account) => {
+    setLoadingEmail(account.email);
+    setTimeout(() => {
+      onSelectAccount({
+        email: account.email,
+        name: account.name,
+        isGoogle: true,
+      });
+      onClose();
+    }, 600);
+  };
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    if (!customEmail.trim() || !/^\S+@\S+\.\S+$/.test(customEmail.trim())) return;
+    const clean = customEmail.trim().toLowerCase();
+    const namePart = clean.split('@')[0];
+    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    handleSelect({ name: formattedName, email: clean });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          background: '#ffffff',
+          color: '#202124',
+          borderRadius: '24px',
+          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+          overflow: 'hidden',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          animation: 'rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ padding: '32px 32px 16px', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', marginBottom: '16px' }}>
+            <GLogo />
+          </div>
+          <h3 style={{ margin: '0 0 8px', fontSize: '1.4rem', fontWeight: 600, color: '#202124' }}>
+            Sign in with Google
+          </h3>
+          <p style={{ margin: 0, fontSize: '0.92rem', color: '#5f6368' }}>
+            Choose an account to continue to <strong style={{ color: '#1a73e8' }}>ZYNTRA ’26</strong>
+          </p>
+        </div>
+
+        {/* Account List */}
+        <div style={{ borderTop: '1px solid #dadce0', borderBottom: '1px solid #dadce0' }}>
+          {/* Default Account item */}
+          <button
+            type="button"
+            disabled={loadingEmail !== null}
+            onClick={() => handleSelect(defaultAccount)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              padding: '16px 32px',
+              border: 0,
+              background: loadingEmail === defaultAccount.email ? '#f1f3f4' : 'transparent',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              if (loadingEmail !== defaultAccount.email) e.currentTarget.style.background = '#f8f9fa';
+            }}
+            onMouseLeave={(e) => {
+              if (loadingEmail !== defaultAccount.email) e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4285F4, #34A853)',
+                color: '#fff',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {defaultAccount.name.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#202124' }}>
+                {defaultAccount.name}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#5f6368', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {defaultAccount.email}
+              </div>
+            </div>
+            {loadingEmail === defaultAccount.email && (
+              <div
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid #1a73e8',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.6s linear infinite',
+                }}
+              />
+            )}
+          </button>
+
+          {/* Use another account row */}
+          {!showOther ? (
+            <button
+              type="button"
+              onClick={() => setShowOther(true)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px 32px',
+                border: 0,
+                borderTop: '1px solid #f1f3f4',
+                background: 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                color: '#3c4043',
+                fontSize: '0.92rem',
+                fontWeight: 500,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f8f9fa')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  border: '1px solid #dadce0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#5f6368',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <span>Use another Google account</span>
+            </button>
+          ) : (
+            <form
+              onSubmit={handleCustomSubmit}
+              style={{ padding: '16px 32px', display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
+              <input
+                type="email"
+                autoFocus
+                placeholder="Enter your Gmail address"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #dadce0',
+                  fontSize: '0.92rem',
+                  outline: 'none',
+                  color: '#202124',
+                  background: '#fff',
+                }}
+                required
+              />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOther(false)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #dadce0',
+                    background: '#fff',
+                    color: '#5f6368',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingEmail !== null}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '6px',
+                    border: 0,
+                    background: '#1a73e8',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Continue
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Footer info */}
+        <div style={{ padding: '20px 32px 24px', background: '#fafafa' }}>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: '#5f6368', lineHeight: 1.5 }}>
+            To continue, Google will share your verified name and email address with ZYNTRA ’26.
+          </p>
+          <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'transparent',
+                border: 0,
+                color: '#1a73e8',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
   const [mode, setMode] = useState('in');
   const [f, setF] = useState({ name: '', email: '', pw: '', pw2: '', remember: true });
   const [show, setShow] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const [gAsk, setGAsk] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [customClientId, setCustomClientId] = useState(() => {
-    return (
-      (typeof window !== 'undefined' && localStorage.getItem('zyntra_google_client_id')) ||
-      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-      ''
-    );
-  });
-  const [gmailInput, setGmailInput] = useState(() => {
-    if (leaderName) {
-      const clean = leaderName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return clean ? clean + '@gmail.com' : '';
-    }
-    return '';
-  });
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
   const sess = load('zyntra_session', null);
   const up = mode === 'up';
@@ -632,8 +886,9 @@ export function SignIn({ evId, onAuth, leaderName = '' }) {
 
   const handleGoogleClick = () => {
     setErr('');
-    const effectiveClientId = (customClientId || GOOGLE_CLIENT_ID || '').trim();
+    const effectiveClientId = (GOOGLE_CLIENT_ID || '').trim();
 
+    // 1. If client ID is present, launch native Google GIS token client
     if (effectiveClientId) {
       const launched = launchGoogleSignIn({
         clientId: effectiveClientId,
@@ -642,32 +897,15 @@ export function SignIn({ evId, onAuth, leaderName = '' }) {
           onAuth(googleUser);
         },
         onError: (errMsg) => {
-          setErr(errMsg || 'Google authentication was cancelled.');
-          setGAsk(true);
+          setErr(errMsg || 'Google authentication closed.');
+          setShowGoogleModal(true);
         },
       });
       if (launched) return;
     }
 
-    // If client ID is not configured yet, open the Google Sign-In panel
-    setGAsk(true);
-  };
-
-  const handleGmailSubmit = (e) => {
-    e.preventDefault();
-    const cleanMail = gmailInput.trim().toLowerCase();
-    if (!cleanMail || !/^\S+@\S+\.\S+$/.test(cleanMail)) {
-      setErr('Please enter a valid Gmail address (e.g. name@gmail.com).');
-      return;
-    }
-    const displayName = cleanMail.split('@')[0];
-    const u = {
-      email: cleanMail,
-      name: leaderName || displayName.charAt(0).toUpperCase() + displayName.slice(1),
-      isGoogle: true,
-    };
-    store('zyntra_session', u);
-    onAuth(u);
+    // 2. Otherwise open Google's authentic account chooser popup
+    setShowGoogleModal(true);
   };
 
   async function submit(e) {
@@ -756,102 +994,17 @@ export function SignIn({ evId, onAuth, leaderName = '' }) {
         Continue with Google
       </button>
 
-      {gAsk && (
-        <div
-          style={{
-            border: '1px solid rgba(63, 216, 255, 0.4)',
-            borderRadius: 14,
-            padding: '16px',
-            background: 'rgba(5, 14, 38, 0.9)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <GLogo />
-            <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff' }}>
-                Google Sign In
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(228,244,255,0.7)' }}>
-                Authenticate with your Gmail address
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={handleGmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Field label="Gmail Address">
-              <input
-                type="email"
-                autoFocus
-                placeholder="yourname@gmail.com"
-                value={gmailInput}
-                onChange={(e) => {
-                  setErr('');
-                  setGmailInput(e.target.value);
-                }}
-                required
-              />
-            </Field>
-
-            <button
-              className="btn pri"
-              type="submit"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '12px',
-              }}
-            >
-              <GLogo />
-              Continue to Payment with Google
-            </button>
-          </form>
-
-          <div style={{ borderTop: '1px solid rgba(140,200,255,0.15)', paddingTop: 8 }}>
-            <button
-              type="button"
-              className="link"
-              onClick={() => setShowConfig(!showConfig)}
-              style={{ fontSize: '0.7rem' }}
-            >
-              {showConfig ? '▲ Hide Google OAuth Client ID setup' : '⚙ Enable Native Google Popup Window'}
-            </button>
-
-            {showConfig && (
-              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <Field label="Google OAuth Client ID">
-                  <input
-                    value={customClientId}
-                    onChange={(e) => {
-                      setCustomClientId(e.target.value);
-                      localStorage.setItem('zyntra_google_client_id', e.target.value.trim());
-                    }}
-                    placeholder="xxxx.apps.googleusercontent.com"
-                  />
-                </Field>
-                <p className="hint" style={{ fontSize: '0.68rem', lineHeight: 1.4 }}>
-                  Add your Google Cloud Web Client ID here (or set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>.env</code>). When set, clicking &quot;Continue with Google&quot; automatically launches Google&apos;s native OAuth account selector popup!
-                </p>
-                {customClientId && (
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ fontSize: '0.7rem', padding: '6px 12px', alignSelf: 'flex-start' }}
-                    onClick={handleGoogleClick}
-                  >
-                    Test Native Google Popup
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Authentic Google Account Chooser Popup */}
+      <GoogleAuthPopup
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        leaderName={leaderName}
+        leaderEmail={leaderEmail}
+        onSelectAccount={(googleUser) => {
+          store('zyntra_session', googleUser);
+          onAuth(googleUser);
+        }}
+      />
 
       <div className="or">
         <span>or use email</span>
