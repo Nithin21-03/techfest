@@ -107,6 +107,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
   const earthRef = useRef(null);
   const earth2Ref = useRef(null);
   const rimRef = useRef(null);
+  const cdWrapRef = useRef(null);
 
   // Toggle FAQ accordion
   const toggleFaq = (idx) => {
@@ -177,6 +178,9 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
     const io = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
+          const parent = entry.target.parentElement;
+          const idx = parent ? Math.min(6, Array.from(parent.children).indexOf(entry.target)) : 0;
+          entry.target.style.transitionDelay = `${Math.max(0, idx) * 60}ms`;
           entry.target.classList.add('in');
           io.unobserve(entry.target);
         }
@@ -187,12 +191,64 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
     return () => io.disconnect();
   }, [activeDay]);
 
-  // Starfield canvas, Neural network canvas, Cyber hand canvas & RAF scroll loop
+  // High-performance exponential-damped cinematic animation engine
   useEffect(() => {
     let animId;
+    let isRunning = false;
+    let isTabVisible = !document.hidden;
+    let last = performance.now();
     let vw = window.innerWidth;
     let vh = window.innerHeight;
     const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const BIG = RM ? 0 : 1;
+
+    // Butter-smooth interpolated coordinates
+    let targetY = window.scrollY;
+    let cy = window.scrollY;
+    let tmx = 0;
+    let tmy = 0;
+    let mx = 0;
+    let my = 0;
+    let pEnter = 0;
+    let lastProgVal = -1;
+    let lastNa = -1;
+
+    // Section geometry tracking
+    const SECIDS = ['home', 'enter', 'countdown', 'events', 'connect', 'roadmap', 'community', 'contact', 'faq'];
+    const NAVSEC = ['home', 'countdown', 'events', 'roadmap', 'community', 'contact', 'faq'];
+    let secs = [];
+
+    const measure = () => {
+      vw = window.innerWidth;
+      vh = window.innerHeight;
+      const y = window.scrollY;
+      secs = SECIDS.map(id => {
+        const el = document.getElementById(id);
+        const r = el ? el.getBoundingClientRect() : { top: 0, height: 0 };
+        const h = el ? el.offsetHeight : 0;
+        return {
+          id,
+          el,
+          top: r.top + y,
+          h,
+          range: Math.max(1, h - vh)
+        };
+      });
+      resizeStars();
+      resizeNet();
+      resizeHand();
+      wake();
+    };
+
+    const getSec = (id) => secs.find(s => s.id === id) || { top: 0, h: 0, range: 1 };
+    const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+    const sm = (a, b, x) => {
+      x = clamp((x - a) / (b - a));
+      return x * x * (3 - 2 * x);
+    };
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
+    const inView = (s, margin = 160) => (cy + vh >= s.top - margin) && (cy <= s.top + s.h + margin);
 
     // --- Starfield setup ---
     const sc = starsRef.current;
@@ -207,7 +263,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       sc.width = Math.round(vw * d);
       sc.height = Math.round(vh * d);
       if (sx) sx.setTransform(d, 0, 0, d, 0, 0);
-      const n = Math.round(Math.min(200, Math.max(75, (vw * vh) / 8500)));
+      const n = Math.round(clamp((vw * vh) / 8500, 75, 200));
       stars = Array.from({ length: n }, () => ({
         x: Math.random() * vw,
         y: Math.random() * vh,
@@ -230,7 +286,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       nc.width = Math.round(vw * d);
       nc.height = Math.round(vh * d);
       if (nx) nx.setTransform(d, 0, 0, d, 0, 0);
-      const n = Math.round(Math.min(50, Math.max(20, (vw * vh) / 26000)));
+      const n = Math.round(clamp((vw * vh) / 26000, 24, 52));
       nodes = Array.from({ length: n }, () => ({
         x: Math.random() * vw,
         y: Math.random() * vh,
@@ -259,157 +315,292 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       const w = hc.clientWidth || 300;
       const h = hc.clientHeight || 200;
       hParticles.push({
-        x: (0.35 + Math.random() * 0.3) * w,
-        y: (0.55 + Math.random() * 0.15) * h,
-        vx: (Math.random() - 0.5) * 0.2,
-        vy: -(0.3 + Math.random() * 0.6),
+        x: (0.32 + Math.random() * 0.30) * w,
+        y: (0.50 + Math.random() * 0.16) * h,
+        vx: (Math.random() - 0.5) * 0.12 * (h / 600),
+        vy: -(0.25 + Math.random() * 0.55) * (h / 600),
         r: 0.6 + Math.random() * 1.5,
-        life: 0.005 + Math.random() * 0.006,
+        life: 0.0035 + Math.random() * 0.004,
         alpha: 1
       });
     };
 
-    // Resize handler
-    const handleResize = () => {
-      vw = window.innerWidth;
-      vh = window.innerHeight;
-      resizeStars();
-      resizeNet();
-      resizeHand();
-    };
-
-    window.addEventListener('resize', handleResize, { passive: true });
-    handleResize();
-
-    // Mouse / Cursor position tracker
-    let curX = vw / 2;
-    let curY = vh / 2;
-    let mx = 0;
-    let my = 0;
-
-    const handlePointerMove = (e) => {
-      curX = e.clientX;
-      curY = e.clientY;
-      const tmx = (e.clientX / vw - 0.5) * 2;
-      const tmy = (e.clientY / vh - 0.5) * 2;
-      mx += (tmx - mx) * 0.1;
-      my += (tmy - my) * 0.1;
-      if (glowRef.current) {
-        glowRef.current.style.transform = `translate(${curX - 250}px, ${curY - 250}px)`;
+    // Staggered reveal for chapter 01
+    const eEls = [0, 1, 2, 3, 4, 5, 6].map(i => document.getElementById('e' + i));
+    const rv = (el, start, dur = 0.15) => {
+      if (!el) return;
+      if (RM) {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        return;
       }
-    };
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-
-    // Helpers
-    const clamp = (v, min = 0, max = 1) => Math.max(min, Math.min(max, v));
-    const smoothstep = (min, max, value) => {
-      const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
-      return x * x * (3 - 2 * x);
+      const raw = clamp((pEnter - start) / dur);
+      const k = sm(0, 1, raw);
+      const moveK = easeOutCubic(raw);
+      el.style.opacity = k <= 0.002 ? '0' : k.toFixed(3);
+      el.style.transform = `translate3d(0, ${((1 - moveK) * 20).toFixed(2)}px, 0)`;
     };
 
-    // Main RAF Animation Loop
-    let lastTime = performance.now();
+    const fo = { x: 0, y: 0 };
+    const navEls = document.querySelectorAll('#bar nav a, #bar nav button');
 
-    const loop = (time) => {
-      const dt = Math.min(50, time - lastTime);
-      lastTime = time;
-      const scrollY = window.scrollY;
-      const maxScroll = Math.max(1, document.documentElement.scrollHeight - vh);
+    // Main Update Function
+    const update = (dt, t) => {
+      const hs = getSec('home');
+      const es = getSec('enter');
+      const ns = getSec('countdown');
+      const vs = getSec('events');
+      const cs = getSec('connect');
+      const ks = getSec('contact');
 
-      // Scroll progress bar
+      const maxScrollVal = Math.max(1, document.documentElement.scrollHeight - vh);
+
+      // Scroll Progress Bar
       if (progressRef.current) {
-        progressRef.current.style.transform = `scaleX(${clamp(scrollY / maxScroll)})`;
+        const pVal = clamp(cy / maxScrollVal);
+        if (Math.abs(pVal - lastProgVal) > 0.0008) {
+          progressRef.current.style.transform = `scaleX(${pVal})`;
+          lastProgVal = pVal;
+        }
       }
 
-      // Dynamic Section Calculations
-      const homeEl = document.getElementById('home');
-      const enterEl = document.getElementById('enter');
-      const eventsEl = document.getElementById('events');
-      const connectEl = document.getElementById('connect');
-      const contactEl = document.getElementById('contact');
+      // Smooth cursor exponential damping
+      const pAlpha = 1 - Math.exp(-dt * 0.008);
+      mx += (tmx - mx) * pAlpha;
+      my += (tmy - my) * pAlpha;
 
-      // 1. HERO ANIMATION
-      if (homeEl) {
-        const hTop = homeEl.offsetTop;
-        const hRange = Math.max(1, homeEl.offsetHeight - vh);
-        const ph = clamp((scrollY - hTop) / hRange);
+      // Active section in navbar
+      const mid = cy + vh * 0.45;
+      let na = 0;
+      for (let i = 0; i < NAVSEC.length; i++) {
+        const s = getSec(NAVSEC[i]);
+        if (mid >= s.top) na = i;
+      }
+      if (na !== lastNa) {
+        if (lastNa >= 0 && navEls[lastNa]) navEls[lastNa].classList.remove('on');
+        if (navEls[na]) navEls[na].classList.add('on');
+        lastNa = na;
+      }
+
+      // 1. HERO ANIMATIONS
+      const ph = RM ? 0 : clamp((cy - hs.top) / hs.range);
+      if (inView(hs) || ph < 1) {
+        const z = Math.pow(ph, 1.45);
         if (figRef.current) {
-          const z = Math.pow(ph, 1.45);
-          figRef.current.style.transform = `translate3d(${-mx * 16 * (1 - ph)}px, ${-my * 10 * (1 - ph)}px, 0) scale(${1 + z * 1.35})`;
-          figRef.current.style.opacity = String(1 - smoothstep(0.65, 0.95, ph));
+          fo.x = figRef.current.offsetLeft + 0.48 * figRef.current.offsetWidth;
+          fo.y = figRef.current.offsetTop + 0.25 * figRef.current.offsetHeight;
+          const cen = sm(0, 0.9, ph) * BIG;
+          figRef.current.style.transform = `translate3d(${(vw / 2 - fo.x) * cen - mx * 16 * (1 - ph)}px, ${(vh / 2 - fo.y) * cen - my * 10 * (1 - ph)}px, 0) scale(${1 + z * 1.35 * BIG})`;
+          figRef.current.style.opacity = String(1 - sm(0.65, 0.95, ph));
         }
         if (coreRef.current) {
-          coreRef.current.style.opacity = String(0.2 + 0.8 * ph);
+          const baseGlow = RM ? 0.18 : 0.18 + 0.08 * Math.sin(t * 0.002);
+          coreRef.current.style.opacity = (baseGlow * (1 - sm(0, 0.22, ph)) + sm(0.22, 0.85, ph)).toFixed(3);
+          coreRef.current.style.transform = `scale(${1 + z * 3.2 * BIG})`;
         }
         if (heroRef.current) {
           heroRef.current.style.transform = `translate3d(${mx * 7}px, ${-ph * vh * 0.55 + my * 4}px, 0)`;
-          heroRef.current.style.opacity = String(1 - smoothstep(0.05, 0.38, ph));
+          heroRef.current.style.opacity = String(1 - sm(0.05, 0.38, ph));
         }
         if (cueRef.current) {
-          cueRef.current.style.opacity = String(1 - smoothstep(0, 0.08, ph));
+          cueRef.current.style.opacity = String(1 - sm(0, 0.08, ph));
         }
       }
 
-      // 2. ENTER ANIMATION
-      if (enterEl) {
-        const eTop = enterEl.offsetTop;
-        const eRange = Math.max(1, enterEl.offsetHeight - vh);
-        const pe = clamp((scrollY - eTop) / eRange);
+      // 2. CHAPTER 01 TRANSITION (ENTER)
+      const pe = RM ? 0.8 : clamp((cy - es.top) / es.range);
+      pEnter = pe;
+      if (inView(es, 180) || (pe > 0 && pe < 1)) {
+        const skyFloat = RM ? 0 : Math.sin(t * 0.0006) * 3.5;
+        const fgFloat = RM ? 0 : Math.cos(t * 0.0008) * 2.5;
         if (skyRef.current) {
-          skyRef.current.style.transform = `translate3d(${mx * 5}px, ${my * 3}px, 0) scale(${(1.01 + pe * 0.03).toFixed(4)})`;
+          skyRef.current.style.transform = `translate3d(${mx * 5}px, ${my * 3 + skyFloat}px, 0) scale(${(1.01 + pe * 0.03 * BIG).toFixed(4)})`;
         }
         if (fgRef.current) {
-          fgRef.current.style.transform = `translate3d(${-mx * 8}px, ${-my * 4}px, 0) scale(${(1.03 + pe * 0.06).toFixed(4)})`;
+          fgRef.current.style.transform = `translate3d(${-mx * 8}px, ${-my * 4 + fgFloat}px, 0) scale(${(1.03 + pe * 0.06 * BIG).toFixed(4)})`;
         }
-        if (hdWrapRef.current) {
-          const pk = smoothstep(0.1, 0.46, pe);
-          const pOut = 1 - smoothstep(0.9, 0.98, pe);
+        rv(eEls[0], 0.02, 0.14);
+        rv(eEls[1], 0.08, 0.15);
+        rv(eEls[2], 0.16, 0.16);
+        rv(eEls[3], 0.24, 0.16);
+        rv(eEls[4], 0.32, 0.16);
+        rv(eEls[5], 0.42, 0.15);
+        rv(eEls[6], 0.50, 0.15);
+
+        const pk = RM ? 1 : sm(0.10, 0.46, pe);
+        const pOut = RM ? 1 : 1 - sm(0.90, 0.98, pe);
+        const rbMob = vw <= 860;
+        if (!RM && hdWrapRef.current) {
+          const hk = 1 - Math.pow(1 - pk, 3);
+          const handBob = Math.sin(t * 0.0012) * 6;
           hdWrapRef.current.style.opacity = (pk * pOut).toFixed(3);
-          hdWrapRef.current.style.transform = `translate3d(${((1 - pk) * (vw <= 860 ? vw * 0.4 : vw * 0.25)).toFixed(1)}px, ${((0.5 - pe) * vh * 0.1).toFixed(1)}px, 0) scale(${(0.9 + 0.1 * pk).toFixed(3)})`;
+          hdWrapRef.current.style.transform = `translate3d(${((1 - hk) * (rbMob ? vw * 0.5 : vw * 0.26)).toFixed(1)}px, ${((0.5 - pe) * vh * (rbMob ? 0.05 : 0.12) * BIG + handBob).toFixed(1)}px, 0) scale(${Math.min(1.08, (0.90 + 0.10 * hk + pe * 0.04)).toFixed(3)})`;
         }
-        if (hdTiltRef.current) {
-          hdTiltRef.current.style.transform = `perspective(1000px) rotateY(${mx * 9}deg) rotateX(${-my * 7}deg)`;
+        if (!RM && hdTiltRef.current) {
+          hdTiltRef.current.style.transform = `perspective(1000px) rotateY(${mx * 9}deg) rotateX(${-my * 7}deg) translate3d(${mx * 10}px, ${my * 6}px, 0)`;
         }
+      } else if (cy < es.top) {
+        eEls.forEach(el => {
+          if (el) { el.style.opacity = '0'; el.style.transform = 'translate3d(0, 20px, 0)'; }
+        });
+        if (hdWrapRef.current) hdWrapRef.current.style.opacity = '0';
+      } else {
+        eEls.forEach(el => {
+          if (el) { el.style.opacity = '1'; el.style.transform = 'none'; }
+        });
+        if (hdWrapRef.current) hdWrapRef.current.style.opacity = '0';
       }
 
-      // 3. EVENTS OPTIC SCAN HUD
-      if (eventsEl) {
-        const vTop = eventsEl.offsetTop;
-        const vRange = Math.max(1, eventsEl.offsetHeight - vh);
-        const pv = clamp((scrollY - vTop) / vRange);
-        const open = smoothstep(0, 0.24, pv);
-        const zoom = smoothstep(0.3, 0.58, pv);
+      // 3. COUNTDOWN ENTRANCE
+      if (inView(ns, 180) && cdWrapRef.current) {
+        const pn = RM ? 1 : clamp((cy - ns.top) / ns.range);
+        const k = sm(0, 0.3, pn);
+        cdWrapRef.current.style.opacity = String(k);
+        cdWrapRef.current.style.transform = `translate3d(0, calc(-50% + ${(1 - k) * 40}px), 0)`;
+      }
 
+      // 4. EVENTS OPTIC SCAN & CIRCULAR PORTAL
+      if (inView(vs, 180)) {
+        const pv = RM ? 1 : clamp((cy - vs.top) / vs.range);
+        const open = sm(0, 0.24, pv);
+        const zoom = sm(0.3, 0.58, pv);
+        const pz = sm(0.52, 0.74, pv);
+        const sc0 = lerp(0.3, 1, open);
+        const eyeScale = RM ? 1 : sc0 * Math.exp(Math.log(6) * zoom);
+        const blurVal = RM ? 0 : clamp(24 * (0.7 * zoom + 0.3 * Math.pow(zoom, 1.5)), 0, 24);
+        const eyeFade = RM ? 1 : clamp(1 - (0.55 * zoom + 0.45 * Math.pow(zoom, 1.8)), 0, 1);
+        const eyeOp = RM ? 0.5 : ((0.2 + 0.8 * open) * eyeFade);
+
+        if (eyeRef.current) {
+          eyeRef.current.style.transform = `translate3d(-52.2%, -56%, 0) scale(${eyeScale.toFixed(4)})`;
+          eyeRef.current.style.opacity = eyeOp <= 0.001 ? '0' : eyeOp.toFixed(4);
+          eyeRef.current.style.filter = RM ? 'none' : (blurVal <= 0.05 ? `brightness(${0.18 + 0.82 * open})` : `brightness(${0.18 + 0.82 * open}) blur(${blurVal.toFixed(2)}px)`);
+          eyeRef.current.style.visibility = eyeOp <= 0.001 ? 'hidden' : 'visible';
+        }
+        if (scanRef.current) {
+          const scanOp = RM ? 0 : open * (1 - sm(0.26, 0.42, pv));
+          scanRef.current.style.opacity = scanOp <= 0.005 ? '0' : (scanOp * 0.85).toFixed(3);
+        }
         if (pctRef.current) {
           pctRef.current.textContent = String(Math.round(clamp(pv / 0.5) * 100)).padStart(2, '0') + '%';
         }
-        if (eyeRef.current) {
-          const eyeScale = (0.3 + 0.7 * open) * Math.exp(Math.log(5) * zoom);
-          const eyeOp = (0.2 + 0.8 * open) * (1 - zoom * 0.8);
-          eyeRef.current.style.transform = `translate3d(-50%, -55%, 0) scale(${eyeScale.toFixed(3)})`;
-          eyeRef.current.style.opacity = eyeOp <= 0.01 ? '0' : eyeOp.toFixed(3);
-        }
         if (reticleRef.current) {
-          reticleRef.current.style.opacity = (open * (1 - smoothstep(0.76, 0.92, pv))).toFixed(3);
-          reticleRef.current.style.transform = `scale(${(0.6 + 0.4 * open + zoom * 1.2).toFixed(3)})`;
+          const retScale = RM ? 1 : lerp(0.6, 1, open) * (1 + zoom * 1.3);
+          reticleRef.current.style.transform = `scale(${retScale.toFixed(3)})`;
+          reticleRef.current.style.opacity = open <= 0.005 ? '0' : (open * (1 - sm(0.76, 0.92, pv))).toFixed(3);
+          reticleRef.current.style.visibility = open <= 0.005 ? 'hidden' : 'visible';
+        }
+
+        const pupilR = 0.04 * Math.min(0.96 * vw, 1.3 * vh);
+        const R = eyeScale * pupilR * (RM ? 0 : 1) + (pz > 0 ? pz * Math.hypot(vw, vh) * 0.75 : 0);
+        if (portalRef.current) {
+          portalRef.current.style.transform = `scale(${(Math.max(R, 0) / 100).toFixed(4)})`;
+          portalRef.current.style.opacity = RM ? '0' : String(clamp(open * 3, 0, 1));
+        }
+        if (pbgRef.current) {
+          pbgRef.current.style.opacity = RM ? '1' : String(sm(0.5, 0.72, pv));
+        }
+        if (haloRef.current) {
+          const haloOp = RM ? 0.8 : (open * (1 - sm(0.72, 0.92, pv)));
+          haloRef.current.style.opacity = haloOp <= 0.005 ? '0' : haloOp.toFixed(3);
+          haloRef.current.style.visibility = haloOp <= 0.005 ? 'hidden' : 'visible';
         }
         if (regOverlayRef.current) {
-          const kRev = smoothstep(0.58, 0.76, pv);
-          regOverlayRef.current.style.opacity = kRev.toFixed(3);
-          regOverlayRef.current.style.visibility = kRev > 0.05 ? 'visible' : 'hidden';
-          regOverlayRef.current.style.pointerEvents = kRev > 0.5 ? 'auto' : 'none';
+          const kRev = sm(0.58, 0.76, pv);
+          regOverlayRef.current.style.opacity = kRev <= 0.005 ? '0' : kRev.toFixed(3);
+          regOverlayRef.current.style.visibility = kRev > 0.02 ? 'visible' : 'hidden';
+          regOverlayRef.current.style.pointerEvents = kRev > 0.65 ? 'auto' : 'none';
+          regOverlayRef.current.style.transform = `translate(-50%, calc(-50% + ${(1 - kRev) * 12}px))`;
         }
         if (ctaRef.current) {
-          const kRoad = smoothstep(0.64, 0.82, pv);
-          ctaRef.current.style.opacity = kRoad.toFixed(3);
-          ctaRef.current.style.visibility = kRoad > 0.05 ? 'visible' : 'hidden';
-          ctaRef.current.style.pointerEvents = kRoad > 0.5 ? 'auto' : 'none';
+          const kRoad = sm(0.64, 0.82, pv);
+          ctaRef.current.style.opacity = kRoad <= 0.005 ? '0' : kRoad.toFixed(3);
+          ctaRef.current.style.visibility = kRoad > 0.02 ? 'visible' : 'hidden';
+          ctaRef.current.style.pointerEvents = kRoad > 0.65 ? 'auto' : 'none';
+          ctaRef.current.style.transform = `translate(-50%, ${(1 - kRoad) * 14}px)`;
+        }
+      } else if (cy < vs.top) {
+        if (eyeRef.current) { eyeRef.current.style.opacity = '0'; eyeRef.current.style.visibility = 'hidden'; }
+        if (scanRef.current) scanRef.current.style.opacity = '0';
+        if (reticleRef.current) { reticleRef.current.style.opacity = '0'; reticleRef.current.style.visibility = 'hidden'; }
+        if (portalRef.current) portalRef.current.style.opacity = '0';
+        if (pbgRef.current) pbgRef.current.style.opacity = '0';
+        if (haloRef.current) { haloRef.current.style.opacity = '0'; haloRef.current.style.visibility = 'hidden'; }
+        if (regOverlayRef.current) { regOverlayRef.current.style.opacity = '0'; regOverlayRef.current.style.visibility = 'hidden'; regOverlayRef.current.style.pointerEvents = 'none'; }
+        if (ctaRef.current) { ctaRef.current.style.opacity = '0'; ctaRef.current.style.visibility = 'hidden'; ctaRef.current.style.pointerEvents = 'none'; }
+      } else {
+        if (eyeRef.current) { eyeRef.current.style.opacity = '0'; eyeRef.current.style.visibility = 'hidden'; }
+        if (scanRef.current) scanRef.current.style.opacity = '0';
+        if (reticleRef.current) { reticleRef.current.style.opacity = '0'; reticleRef.current.style.visibility = 'hidden'; }
+        if (portalRef.current) portalRef.current.style.opacity = '0';
+        if (pbgRef.current) pbgRef.current.style.opacity = '0';
+        if (haloRef.current) { haloRef.current.style.opacity = '0'; haloRef.current.style.visibility = 'hidden'; }
+        if (regOverlayRef.current) { regOverlayRef.current.style.opacity = '0'; regOverlayRef.current.style.visibility = 'hidden'; regOverlayRef.current.style.pointerEvents = 'none'; }
+        if (ctaRef.current) { ctaRef.current.style.opacity = '0'; ctaRef.current.style.visibility = 'hidden'; ctaRef.current.style.pointerEvents = 'none'; }
+      }
+
+      // 5. CHAPTER 02 TRANSITION (CONNECT)
+      if (inView(cs, 180)) {
+        const pc = RM ? 0.5 : clamp((cy - cs.top) / cs.range);
+        const pConEnter = clamp((cy - (cs.top - vh * 0.70)) / (vh * 0.40));
+        const conHeadOp = RM ? 1 : sm(0, 1, pConEnter);
+        if (conHeadRef.current) {
+          conHeadRef.current.style.opacity = conHeadOp <= 0.005 ? '0' : conHeadOp.toFixed(3);
+          conHeadRef.current.style.visibility = conHeadOp > 0.02 ? 'visible' : 'hidden';
+          conHeadRef.current.style.transform = RM ? 'none' : `translateY(${(1 - conHeadOp) * 20}px)`;
+        }
+        const o1 = 1 - sm(0.2, 0.5, pc) * 0.72;
+        const o2 = sm(0.08, 0.38, pc) * (1 - sm(0.58, 0.86, pc) * 0.7);
+        const o3 = sm(0.5, 0.86, pc);
+        if (net1Ref.current) {
+          net1Ref.current.style.opacity = String(o1);
+          net1Ref.current.style.transform = `translate3d(${-pc * 4 * BIG}%, ${-pc * 6 * BIG}%, 0) scale(${1.02 + pc * 0.05 * BIG})`;
+        }
+        if (net2Ref.current) {
+          net2Ref.current.style.opacity = String(o2);
+          net2Ref.current.style.transform = `translate3d(${pc * 4 * BIG - 2}%, ${pc * 6 * BIG - 2}%, 0) scale(${1.05 - pc * 0.04 * BIG})`;
+        }
+        if (net3Ref.current) {
+          net3Ref.current.style.opacity = String(o3);
+          net3Ref.current.style.transform = `translate3d(${-pc * 5 * BIG + 2}%, ${-pc * 8 * BIG + 3}%, 0) scale(${1.03 + pc * 0.06 * BIG})`;
+        }
+        const cRefs = [c1Ref.current, c2Ref.current, c3Ref.current];
+        [0.22, 0.46, 0.7].forEach((threshold, idx) => {
+          const e = sm(threshold, threshold + 0.1, pc);
+          if (cRefs[idx]) {
+            cRefs[idx].style.opacity = String(e);
+            cRefs[idx].style.transform = `translateY(${(1 - e) * 50}px) scale(${0.94 + 0.06 * e})`;
+          }
+        });
+      } else if (cy < cs.top) {
+        if (conHeadRef.current) { conHeadRef.current.style.opacity = '0'; conHeadRef.current.style.visibility = 'hidden'; }
+      } else {
+        if (conHeadRef.current) { conHeadRef.current.style.opacity = '1'; conHeadRef.current.style.visibility = 'visible'; conHeadRef.current.style.transform = 'none'; }
+      }
+
+      // 6. CONTACT (EARTH ROTATION)
+      if (inView(ks, 220)) {
+        const r = RM ? 1 : clamp((cy - (ks.top - vh * 0.35)) / (vh * 0.75));
+        const re = 1 - Math.pow(1 - r, 2.2);
+        const earthY = (1 - re) * 72;
+        if (earthRef.current) {
+          earthRef.current.style.transform = `translateY(${earthY}vh)`;
+          earthRef.current.style.filter = `brightness(${0.55 + 0.55 * re})`;
+        }
+        if (earth2Ref.current) {
+          earth2Ref.current.style.transform = `translateY(${earthY}vh)`;
+        }
+        if (rimRef.current) {
+          rimRef.current.style.transform = `translateY(${earthY}vh)`;
+          rimRef.current.style.opacity = String(0.15 + 0.85 * re + (RM ? 0 : 0.12 * Math.sin(t * 0.002)));
         }
       }
 
-      // 4. DRAW CANVAS EFFECTS
+      // 7. CANVAS RENDERS
+      const dtNorm = Math.min(2.5, dt / 16.67);
+
       // Starfield
-      if (sx && sc && !RM) {
+      if (sx && sc && !RM && inView(hs) && cy < hs.top + hs.h) {
         sx.clearRect(0, 0, vw, vh);
         const cols = ['#bfe6ff', '#9db8ff', '#ffffff'];
         for (let c = 0; c < 3; c++) {
@@ -418,8 +609,8 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           for (let i = 0; i < stars.length; i++) {
             const s = stars[i];
             if (s.col !== c) continue;
-            const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * 0.001 * s.s + s.p));
-            const y = ((s.y - time * 0.01 * (0.35 + s.z * 0.65) - scrollY * 0.05 * (0.3 + s.z)) % vh + vh) % vh;
+            const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 0.001 * s.s + s.p));
+            const y = ((s.y - t * 0.0035 * (0.35 + s.z * 0.65) - cy * 0.05 * (0.3 + s.z)) % vh + vh) % vh;
             sx.globalAlpha = a;
             sx.moveTo(s.x + s.r, y);
             sx.arc(s.x, y, s.r, 0, 6.28);
@@ -428,7 +619,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
         sx.globalAlpha = 1;
 
-        // Shooting star
         nextShoot -= dt;
         if (nextShoot < 0) {
           nextShoot = 2500 + Math.random() * 4000;
@@ -459,8 +649,8 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
       }
 
-      // Hand Particles
-      if (hx && hc && !RM) {
+      // Cyber Hand Particles
+      if (hx && hc && !RM && inView(es)) {
         const hw = hc.clientWidth || 300;
         const hh = hc.clientHeight || 200;
         hx.clearRect(0, 0, hw, hh);
@@ -481,15 +671,15 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
       }
 
-      // Neural Net Canvas
-      if (nx && nc && !RM) {
+      // Neural Net
+      if (nx && nc && !RM && inView(cs)) {
         nx.clearRect(0, 0, vw, vh);
         const L = Math.min(150, vw * 0.3);
         const L2 = L * L;
         for (let i = 0; i < nodes.length; i++) {
           const a = nodes[i];
-          a.x += a.vx;
-          a.y += a.vy;
+          a.x += a.vx * dtNorm;
+          a.y += a.vy * dtNorm;
           if (a.x < 0 || a.x > vw) a.vx *= -1;
           if (a.y < 0 || a.y > vh) a.vy *= -1;
         }
@@ -511,16 +701,83 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
         nx.stroke();
       }
-
-      animId = requestAnimationFrame(loop);
     };
 
-    animId = requestAnimationFrame(loop);
+    // Master Frame Loop with Exponential Damped Scroll Physics
+    const frame = (t) => {
+      if (!isTabVisible) {
+        isRunning = false;
+        return;
+      }
+      const dt = Math.min(64, t - last);
+      last = t;
+
+      targetY = window.scrollY;
+      const sAlpha = 1 - Math.exp(-dt * 0.022);
+      const diff = targetY - cy;
+      cy = RM ? targetY : (Math.abs(diff) < 0.2 ? targetY : cy + diff * sAlpha);
+
+      update(dt, t);
+
+      const isScrolling = !RM && Math.abs(targetY - cy) > 0.25;
+      const isPointerMoving = !RM && (Math.abs(tmx - mx) > 0.002 || Math.abs(tmy - my) > 0.002);
+      const hs = getSec('home');
+      const cs = getSec('connect');
+      const ks = getSec('contact');
+      const hasActiveStars = !RM && inView(hs) && cy < hs.top + hs.h;
+      const hasActiveNet = !RM && inView(cs);
+      const hasActiveRim = !RM && inView(ks);
+
+      if (isScrolling || isPointerMoving || hasActiveStars || hasActiveNet || hasActiveRim) {
+        animId = requestAnimationFrame(frame);
+      } else {
+        isRunning = false;
+      }
+    };
+
+    const wake = () => {
+      if (!isRunning && isTabVisible) {
+        isRunning = true;
+        last = performance.now();
+        animId = requestAnimationFrame(frame);
+      }
+    };
+
+    const handlePointerMove = (e) => {
+      tmx = (e.clientX / vw - 0.5) * 2;
+      tmy = (e.clientY / vh - 0.5) * 2;
+      if (glowRef.current) {
+        glowRef.current.style.transform = `translate(${e.clientX - 250}px, ${e.clientY - 250}px)`;
+      }
+      wake();
+    };
+
+    const handleVisibility = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible) {
+        last = performance.now();
+        wake();
+      }
+    };
+
+    window.addEventListener('scroll', wake, { passive: true });
+    window.addEventListener('wheel', wake, { passive: true });
+    window.addEventListener('touchmove', wake, { passive: true });
+    window.addEventListener('resize', measure, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    measure();
+    wake();
 
     return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
+      if (animId) cancelAnimationFrame(animId);
+      window.removeEventListener('scroll', wake);
+      window.removeEventListener('wheel', wake);
+      window.removeEventListener('touchmove', wake);
+      window.removeEventListener('resize', measure);
       window.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -944,7 +1201,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       {/* SECTION 3: COUNTDOWN */}
       <section className="pin" id="countdown" aria-label="Countdown">
         <div className="stage">
-          <div className="cdWrap" id="cdWrap">
+          <div className="cdWrap" id="cdWrap" ref={cdWrapRef}>
             <div className="label" style={{ color: 'var(--cyan)' }}>Countdown · T-minus</div>
             <h2>The new dimension opens in</h2>
             <div className="cdGrid" role="timer" aria-label="Time remaining until the event">
@@ -1081,12 +1338,12 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
       {/* SECTION 6: EVENT ROADMAP */}
       <section className="sec ovl" id="roadmap" aria-label="Event roadmap">
-        <div className="label rv2 in">LEARN | BUILD | COMPETE</div>
-        <h2 className="rv2 in">EVENT ROADMAP</h2>
-        <p className="lead rv2 in">Two Days · Multiple Journeys · One Goal!</p>
+        <div className="label rv2">LEARN | BUILD | COMPETE</div>
+        <h2 className="rv2">EVENT ROADMAP</h2>
+        <p className="lead rv2">Two Days · Multiple Journeys · One Goal!</p>
 
         {/* Day Filter Segmented Controls */}
-        <div className="schedFilterWrap rv2 in">
+        <div className="schedFilterWrap rv2">
           <div className="schedFilter" role="tablist" aria-label="Schedule Day Filter">
             <button
               type="button"
@@ -1125,13 +1382,13 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
             {/* DAY 1 */}
             <div className="rmDayGroup" id="colDay1">
-              <div className="rmDayLabel rv2 in" id="headerDay1">
+              <div className="rmDayLabel rv2" id="headerDay1">
                 <div className="rmDayDot" aria-hidden="true" />
                 <span className="rmDayBadge">DAY 1</span>
               </div>
 
               {/* Day 1 - Inauguration */}
-              <div className="rmEntry rv2 in" data-slot="inauguration">
+              <div className="rmEntry rv2" data-slot="inauguration">
                 <div className="rmNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1144,7 +1401,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 1 - Parallel Slot 1 */}
-              <div className="rmEntry rv2 in" data-slot="morning-parallel">
+              <div className="rmEntry rv2" data-slot="morning-parallel">
                 <div className="rmNode parallelNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1172,7 +1429,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 1 - Lunch */}
-              <div className="rmEntry rv2 in" data-slot="lunch-1">
+              <div className="rmEntry rv2" data-slot="lunch-1">
                 <div className="rmNode breakNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1185,7 +1442,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 1 - Parallel Slot 2 */}
-              <div className="rmEntry rv2 in" data-slot="afternoon-parallel">
+              <div className="rmEntry rv2" data-slot="afternoon-parallel">
                 <div className="rmNode parallelNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1213,7 +1470,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 1 Marker */}
-              <div className="rmMarker rv2 in" data-slot="end-day-1">
+              <div className="rmMarker rv2" data-slot="end-day-1">
                 <div className="rmMarkerInner">
                   <span className="rmMarkerLine" />
                   <span className="rmMarkerBadge">END OF DAY 1</span>
@@ -1224,13 +1481,13 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
             {/* DAY 2 */}
             <div className="rmDayGroup" id="colDay2">
-              <div className="rmDayLabel rv2 in" id="headerDay2">
+              <div className="rmDayLabel rv2" id="headerDay2">
                 <div className="rmDayDot" aria-hidden="true" />
                 <span className="rmDayBadge">DAY 2</span>
               </div>
 
               {/* Day 2 - Entry 1 */}
-              <div className="rmEntry rv2 in" data-slot="escape-room">
+              <div className="rmEntry rv2" data-slot="escape-room">
                 <div className="rmNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1243,7 +1500,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 2 - Lunch */}
-              <div className="rmEntry rv2 in" data-slot="lunch-2">
+              <div className="rmEntry rv2" data-slot="lunch-2">
                 <div className="rmNode breakNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1256,7 +1513,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 2 - Parallel Slot 3 */}
-              <div className="rmEntry rv2 in" data-slot="midday-parallel">
+              <div className="rmEntry rv2" data-slot="midday-parallel">
                 <div className="rmNode parallelNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1284,7 +1541,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 2 - Parallel Slot 4 */}
-              <div className="rmEntry rv2 in" data-slot="final-parallel">
+              <div className="rmEntry rv2" data-slot="final-parallel">
                 <div className="rmNode parallelNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1312,7 +1569,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 2 - Prize Distribution */}
-              <div className="rmEntry rv2 in" data-slot="prize-distribution">
+              <div className="rmEntry rv2" data-slot="prize-distribution">
                 <div className="rmNode prizeNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1347,16 +1604,16 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
       {/* SECTION 7: COMMUNITY */}
       <section className="sec" id="community" aria-label="Community">
-        <div className="label rv2 in">The people behind ZYNTRA'26</div>
-        <h2 className="rv2 in">Community</h2>
-        <p className="lead rv2 in">Faculty and students who make the fest happen.</p>
+        <div className="label rv2">The people behind ZYNTRA'26</div>
+        <h2 className="rv2">Community</h2>
+        <p className="lead rv2">Faculty and students who make the fest happen.</p>
 
         {/* Faculty Community */}
         <div className="cat fac">
-          <div className="catHead rv2 in"><h3>Faculty Community</h3><u /></div>
+          <div className="catHead rv2"><h3>Faculty Community</h3><u /></div>
           <div className="pgrid" id="facGrid">
             {ZYNTRA_CONFIG.faculty.map((p, i) => (
-              <article key={i} className="pcard glass rv2 in">
+              <article key={i} className="pcard glass rv2">
                 <div className="avatar" aria-hidden="true">
                   {p.photo ? <img src={p.photo} alt={p.name} /> : getInitials(p.name)}
                 </div>
@@ -1372,10 +1629,10 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
         {/* Student Community */}
         <div className="cat stu">
-          <div className="catHead rv2 in"><h3>Student Community</h3><u /></div>
+          <div className="catHead rv2"><h3>Student Community</h3><u /></div>
           <div className="pgrid" id="stuGrid">
             {ZYNTRA_CONFIG.students.map((p, i) => (
-              <article key={i} className="pcard glass rv2 in">
+              <article key={i} className="pcard glass rv2">
                 <div className="avatar" aria-hidden="true">
                   {p.photo ? <img src={p.photo} alt={p.name} /> : getInitials(p.name)}
                 </div>
@@ -1480,14 +1737,14 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
       {/* SECTION 9: FAQ */}
       <section className="sec ovl" id="faq" aria-label="Frequently asked questions" style={{ '--ov': '12vh' }}>
-        <div className="label rv2 in">Questions</div>
-        <h2 className="rv2 in">FAQ</h2>
-        <p className="lead rv2 in">Quick answers about the fest, eligibility, and entry rules.</p>
+        <div className="label rv2">Questions</div>
+        <h2 className="rv2">FAQ</h2>
+        <p className="lead rv2">Quick answers about the fest, eligibility, and entry rules.</p>
         <div className="faqList" id="faqList">
           {ZYNTRA_CONFIG.faq.map((f, i) => {
             const isOpen = openFaq.has(i);
             return (
-              <div key={i} className={`faqItem glass rv2 in ${isOpen ? 'open' : ''}`}>
+              <div key={i} className={`faqItem glass rv2 ${isOpen ? 'open' : ''}`}>
                 <h3 style={{ fontSize: 'inherit' }}>
                   <button
                     className="faqQ"
