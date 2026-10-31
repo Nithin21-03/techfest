@@ -597,8 +597,20 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
             className="wordmark"
             href="#home"
             onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            ZYNTRA<i>'</i>26
+            <img
+              src="/landing/logo.webp"
+              alt="ZYNTRA Logo"
+              style={{
+                height: '32px',
+                width: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 8px rgba(63, 216, 255, 0.6))',
+                verticalAlign: 'middle'
+              }}
+            />
+            <span>ZYNTRA<i>'</i>26</span>
           </a>
         </div>
 
@@ -855,10 +867,23 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           </div>
 
           <div className="heroText" id="heroText" ref={heroRef}>
-            <div id="title" role="img" aria-label="ZYNTRA'26">
+            <div id="title" className="on" role="img" aria-label="ZYNTRA'26">
               <div className="lg">
-                <div className="face" />
-                <div className="shim" />
+                <div className="face" style={{ backgroundImage: 'url(/landing/logo.webp)' }}>
+                  <img
+                    src="/landing/logo.webp"
+                    alt="ZYNTRA'26 Logo"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      display: 'block',
+                      pointerEvents: 'none',
+                      filter: 'drop-shadow(0 0 16px rgba(63, 216, 255, 0.6)) drop-shadow(0 0 36px rgba(47, 123, 255, 0.4))'
+                    }}
+                  />
+                </div>
+                <div className="shim" style={{ WebkitMaskImage: 'url(/landing/logo.webp)', maskImage: 'url(/landing/logo.webp)' }} />
               </div>
             </div>
             <div className="tag" id="tag">
@@ -1502,8 +1527,23 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       <footer id="footer">
         <div className="ftGrid">
           <div>
-            <a className="wordmark" href="#home" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
-              ZYNTRA<i>'</i>26
+            <a
+              className="wordmark"
+              href="#home"
+              onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+            >
+              <img
+                src="/landing/logo.webp"
+                alt="ZYNTRA Logo"
+                style={{
+                  height: '32px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 8px rgba(63, 216, 255, 0.6))'
+                }}
+              />
+              <span>ZYNTRA<i>'</i>26</span>
             </a>
             <div className="tg" id="ftTag">{ZYNTRA_CONFIG.tagline}</div>
             <p id="ftHost">{ZYNTRA_CONFIG.host.name} · {ZYNTRA_CONFIG.host.note}</p>

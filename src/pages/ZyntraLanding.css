@@ -186,10 +186,10 @@ main{position:relative;z-index:1}
 @keyframes breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1.4%) scale(1.03)}}
 .heroText{position:absolute;left:0;right:0;top:51%;text-align:center;padding:0 5vw;will-change:transform,opacity}
 #title{position:relative;width:min(66vw,1180px);aspect-ratio:1600/533;margin:0 auto;display:block}
-#title::before{content:'';position:absolute;left:-12%;right:-12%;top:-60%;bottom:-60%;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(63,216,255,.42),rgba(47,123,255,.2) 38%,transparent 68%);opacity:0;animation:logoPulse 5.5s ease-in-out infinite}
-#title .lg{position:absolute;inset:0;opacity:0;transform:scale(.95) translate3d(0,14px,0);filter:blur(6px) brightness(1.2);transition:opacity 1.2s cubic-bezier(.16,1,.3,1) .15s,transform 1.4s cubic-bezier(.16,1,.3,1) .15s,filter 1.2s ease .15s;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+#title::before{content:'';position:absolute;left:-12%;right:-12%;top:-60%;bottom:-60%;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(63,216,255,.42),rgba(47,123,255,.2) 38%,transparent 68%);opacity:0.8;animation:logoPulse 5.5s ease-in-out infinite}
+#title .lg{position:absolute;inset:0;opacity:1;transform:none;filter:none;animation:logoFloat 7s ease-in-out 1.8s infinite;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 #title.on .lg{opacity:1;transform:none;filter:none;animation:logoFloat 7s ease-in-out 1.8s infinite}
-#title .face,#title .shim{position:absolute;inset:0;background:var(--i-logo) center/contain no-repeat;filter:drop-shadow(0 0 12px rgba(47,123,255,.55)) drop-shadow(0 0 36px rgba(63,216,255,.3));image-rendering:-webkit-optimize-contrast;image-rendering:auto}
+#title .face,#title .shim{position:absolute;inset:0;background-image:url(/landing/logo.webp);background-position:center;background-size:contain;background-repeat:no-repeat;filter:drop-shadow(0 0 12px rgba(47,123,255,.55)) drop-shadow(0 0 36px rgba(63,216,255,.3));image-rendering:-webkit-optimize-contrast;image-rendering:auto}
 #title .shim{filter:none;-webkit-mask-image:var(--i-logo);-webkit-mask-size:contain;-webkit-mask-position:center;-webkit-mask-repeat:no-repeat;mask-image:var(--i-logo);mask-size:contain;mask-position:center;mask-repeat:no-repeat;background:linear-gradient(105deg,transparent 40%,rgba(190,240,255,.95) 50%,transparent 60%) -150% 0/250% 100% no-repeat;opacity:0;mix-blend-mode:screen}
 #title.on .shim{animation:logoShim 1.7s ease-in-out 1.1s 1 forwards}
 @keyframes logoShim{0%{opacity:1;background-position:-150% 0}100%{opacity:1;background-position:150% 0}}
