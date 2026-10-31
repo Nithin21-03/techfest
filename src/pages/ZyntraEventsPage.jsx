@@ -1992,7 +1992,7 @@ export function ScrollProgressBar() {
   return <div id="prog" ref={progRef} />;
 }
 
-export default function ZyntraEventsPage({ onOpenAdmin }) {
+export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
   const [view, setView] = useState(() => {
     if (typeof window !== 'undefined') {
       const h = window.location.hash.slice(1);
@@ -2059,12 +2059,28 @@ export default function ZyntraEventsPage({ onOpenAdmin }) {
       <header>
         <button
           className="mini"
-          onClick={() => go(null)}
+          onClick={onNavigateHome ? onNavigateHome : () => go(null)}
           aria-label="ZYNTRA’26 home"
+          title="Return to Fest Landing"
         >
           <Logo cls="logo" />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {onNavigateHome && (
+            <button
+              className="mini"
+              onClick={onNavigateHome}
+              style={{
+                color: '#3fd8ff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontWeight: 500,
+              }}
+            >
+              ← Fest Home
+            </button>
+          )}
           <button className="mini" onClick={() => go(null)}>
             Events
           </button>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ZyntraLandingPage from './pages/ZyntraLandingPage';
 import ZyntraEventsPage from './pages/ZyntraEventsPage';
 import AdminPage from './pages/AdminPage';
 
@@ -7,8 +8,9 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
       if (hash.startsWith('#admin')) return 'admin';
+      if (hash.startsWith('#events')) return 'events';
     }
-    return 'events';
+    return 'landing'; // Default initial page: Fest Landing Page
   });
 
   // Sync hash routing so back/forward browser buttons work seamlessly
@@ -17,8 +19,10 @@ export default function App() {
       const hash = window.location.hash;
       if (hash.startsWith('#admin')) {
         setCurrentPage('admin');
-      } else {
+      } else if (hash.startsWith('#events')) {
         setCurrentPage('events');
+      } else {
+        setCurrentPage('landing');
       }
     };
 
@@ -32,8 +36,14 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleNavigateHome = () => {
+  const handleNavigateEvents = () => {
     setCurrentPage('events');
+    window.location.hash = '#events';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavigateHome = () => {
+    setCurrentPage('landing');
     window.location.hash = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -47,7 +57,19 @@ export default function App() {
     );
   }
 
+  if (currentPage === 'events') {
+    return (
+      <ZyntraEventsPage
+        onOpenAdmin={handleNavigateAdmin}
+        onNavigateHome={handleNavigateHome}
+      />
+    );
+  }
+
   return (
-    <ZyntraEventsPage onOpenAdmin={handleNavigateAdmin} />
+    <ZyntraLandingPage
+      onOpenEvents={handleNavigateEvents}
+      onOpenAdmin={handleNavigateAdmin}
+    />
   );
 }
