@@ -15,6 +15,7 @@ import {
   getDatabaseStatus,
   getRegistrationByTicket,
   updateCheckInStatus,
+  getUserRegistrations,
 } from './db.js';
 
 dotenv.config();
@@ -72,6 +73,7 @@ app.use((req, res, next) => {
     req.url.startsWith('/ticket') ||
     req.url.startsWith('/send-ticket-email') ||
     req.url.startsWith('/admin') ||
+    req.url.startsWith('/user') ||
     req.url.startsWith('/stats') ||
     req.url.startsWith('/sponsor-inquiry') ||
     req.url.startsWith('/db-status')
@@ -535,6 +537,26 @@ app.post('/api/ticket/:id/check-in', ticketLimiter, async (req, res) => {
   } catch (err) {
     console.error('Check-in status update error:', err.message);
     return res.status(500).json({ error: 'Failed to update check-in status.' });
+  }
+});
+
+// USER REGISTRATIONS & TICKET PASSES LOOKUP
+app.get('/api/user/registrations', ticketLimiter, async (req, res) => {
+  try {
+    const email = req.query.email;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Valid email parameter required.' });
+    }
+    const cleanEmail = email.toLowerCase().trim().slice(0, 120);
+    const records = await getUserRegistrations(cleanEmail);
+    return res.json({
+      success: true,
+      count: records.length,
+      registrations: records,
+    });
+  } catch (err) {
+    console.error('User registrations fetch error:', err.message);
+    return res.status(500).json({ error: 'Failed to retrieve registrations for user.' });
   }
 });
 

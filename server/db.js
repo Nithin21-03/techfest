@@ -661,3 +661,61 @@ export async function updateCheckInStatus(ticketOrTeamId, status = 'CHECKED_IN')
     return rec || null;
   }
 }
+
+/**
+ * Retrieve all registered events & passes for a specific user email
+ */
+export async function getUserRegistrations(email) {
+  if (!email || typeof email !== 'string') return [];
+  const cleanEmail = email.toLowerCase().trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  if (isPostgresConnected && pool) {
+    try {
+      const res = await pool.query(
+        `SELECT 
+           ticket_id as "ticketId",
+           team_id as "teamId",
+           full_name as "fullName",
+           college,
+           email,
+           phone,
+           student_id as "studentId",
+           department,
+           semester,
+           event_id as "eventId",
+           event_name as "eventName",
+           team_name as "teamName",
+           team_members as "teamMembers",
+           members_detail as "membersDetail",
+           project_title as "projectTitle",
+           project_category as "projectCategory",
+           payment_mode as "paymentMode",
+           transaction_ref as "transactionRef",
+           amount_paid as "amountPaid",
+           screenshot,
+           check_in_status as "checkInStatus",
+           check_in_time as "checkInTime",
+           created_at as "createdAt",
+           status
+         FROM registrations 
+         WHERE LOWER(email) = LOWER($1)
+         ORDER BY created_at DESC;`,
+        [cleanEmail]
+      );
+      return res.rows || [];
+    } catch (err) {
+      console.warn('Postgres query error in getUserRegistrations:', err.message);
+    }
+  }
+
+  // Memory / local file fallback
+  return memoryRegistrations.filter(
+    (r) => r.email && r.email.toLowerCase().trim() === cleanEmail
+  );
+}

@@ -24,7 +24,7 @@ export const festConfig = {
     roadmapSlogan: "Two Days Multiple Journeys One Goal!",
     location: "SAPTHAGIRI NPS UNIVERSITY // BENGALURU HUB, Karnataka - 560057",
     targetDate: "2026-11-27T09:00:00+05:30",
-    datesDisplay: "27 & 28 NOVEMBER 2026",
+    datesDisplay: "26 & 27 NOVEMBER 2026",
     brochureUrl: "#",
     posterImage: "/poster-theme.jpg",
     roadmapImage: "/event-roadmap.jpg",
@@ -49,7 +49,7 @@ export const festConfig = {
         { label: "Location", value: "Sapthagiri NPS University" },
         { label: "Timeline", value: "27 & 28 Nov 2026" },
         { label: "Edition", value: "The New Dimension" },
-        { label: "Price Pool", value: "₹3,50,000+" },
+        { label: "Price Pool", value: "₹30000+ " }
       ],
     },
     contact: {
@@ -133,9 +133,7 @@ export const festConfig = {
     "ISE",
     "AI & DS",
     "ECE",
-    "Cyber Security",
-    "ME",
-    "Biotechnology",
+
   ],
 
   // FULL EVENTS ARCHIVE MATCHING THE EXACT ROADMAP FLOW
@@ -147,7 +145,7 @@ export const festConfig = {
       category: "Ceremony",
       department: "All Departments",
       day: 1,
-      date: "27 Nov",
+      date: "26 Nov",
       start_time: "09:00 AM",
       end_time: "10:00 AM",
       time_slot: "9:00 AM – 10:00 AM",

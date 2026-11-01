@@ -176,3 +176,28 @@ export async function updateCheckInInCloud(id, status = 'CHECKED_IN') {
     return null;
   }
 }
+
+/**
+ * Direct Supabase user registrations query by email
+ */
+export async function fetchUserRegistrationsFromCloud(email) {
+  if (!supabase || !email) return [];
+
+  try {
+    const cleanEmail = email.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('*')
+      .ilike('email', cleanEmail)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Direct Supabase user registrations query warning:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn('Direct Supabase user registrations query exception:', err.message);
+    return [];
+  }
+}

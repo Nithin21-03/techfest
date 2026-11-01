@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './ZyntraEvents.css';
 import { saveToCloudDirectly, isSupabaseConfigured } from '../services/dbClient';
+import ProfileRegistrationsModal from '../components/ProfileRegistrationsModal.jsx';
 
 /* ---- COMMON EVENT RULES & CONFIGURATION ---- */
 export const COMMON_RULES = [
@@ -198,10 +199,9 @@ export const GOOGLE_CLIENT_ID =
 export const GOOGLE_REDIRECT_URI = '';
 
 export const DETAILS = [
-  ['Date', 'November 2026 (TBA)'],
+  ['Date', '26-27 November 2026 '],
   ['Time', 'To be announced'],
   ['Venue', 'Sapthagiri NPS University'],
-  ['Entry fee', '₹100 per event'],
 ];
 
 /* Local storage helpers */
@@ -1247,7 +1247,7 @@ export function Flow({ ev, onDone, close, user }) {
     let base64Data = '';
     try {
       base64Data = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
-    } catch (_) {}
+    } catch (_) { }
 
     const verifyUrl = `${window.location.origin}/#verify?id=${encodeURIComponent(genTicket)}&data=${encodeURIComponent(base64Data)}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(verifyUrl)}`;
@@ -2117,7 +2117,7 @@ export function Flow({ ev, onDone, close, user }) {
                     title: `ZYNTRA '26 Ticket - ${ev.name}`,
                     text: `Official Ticket for ${d.leader} (${assignedTeamId}) - ${ev.name}`,
                     url: ticketVerifyLink || window.location.href,
-                  }).catch(() => {});
+                  }).catch(() => { });
                 } else {
                   window.open(ticketVerifyLink, '_blank');
                 }
@@ -2299,7 +2299,8 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
 
   const [regs, setRegs] = useState(() => load('zyntra_regs', {}));
   const [form, setForm] = useState(null);
-  const [gUser, setGUser] = useState(null);
+  const [gUser, setGUser] = useState(() => load('zyntra_session', null));
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // Google OAuth redirect token check
   useEffect(() => {
@@ -2380,6 +2381,31 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
           <button className="mini" onClick={() => go(null)}>
             Events
           </button>
+          {gUser && (
+            <button
+              type="button"
+              className="mini"
+              onClick={() => setProfileModalOpen(true)}
+              title="Click to view your registered events and scannable QR ticket passes"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(63, 216, 255, 0.45)',
+                background: 'rgba(10, 20, 36, 0.75)',
+                color: '#e8f4fc',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: '0.85rem' }}>👤</span>
+              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {gUser.name || gUser.email.split('@')[0]}
+              </span>
+              <span style={{ fontSize: '0.68rem', padding: '1px 5px', background: 'rgba(63, 216, 255, 0.22)', color: '#3fd8ff', borderRadius: '4px', marginLeft: '2px', fontWeight: 700 }}>
+                Passes 🎟️
+              </span>
+            </button>
+          )}
 
         </div>
       </header>
@@ -2431,6 +2457,14 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
           ))}
         </div>
       )}
+
+      {/* Profile Registered Events & QR Passes Modal */}
+      <ProfileRegistrationsModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={gUser}
+        onNavigateEvents={() => go(null)}
+      />
     </div>
   );
 }

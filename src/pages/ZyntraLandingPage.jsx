@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './ZyntraLanding.css';
+import ProfileRegistrationsModal from '../components/ProfileRegistrationsModal.jsx';
 
 /*=====================================================================
    ZYNTRA_CONFIG — FEST CONFIGURATION & SCHEDULE
@@ -82,6 +83,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       return null;
     }
   });
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // Refs for animations
   const starsRef = useRef(null);
@@ -792,7 +794,20 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         <div className="authGroup">
           {currentUser ? (
             <div className="userSessionGroup">
-              <div className="userSessionBadge" title={currentUser.name || currentUser.email}>
+              <div
+                className="userSessionBadge"
+                onClick={() => setProfileModalOpen(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setProfileModalOpen(true);
+                  }
+                }}
+                title="Click to view your registered events and scannable QR ticket passes"
+                style={{ cursor: 'pointer' }}
+              >
                 {currentUser.picture ? (
                   <img
                     src={currentUser.picture}
@@ -803,6 +818,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                   <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>👤</span>
                 )}
                 <span className="userName">{currentUser.name || currentUser.email.split('@')[0]}</span>
+                <span className="userBadgeTag" style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: '4px', background: 'rgba(63, 216, 255, 0.22)', color: '#3fd8ff', fontWeight: 700, marginLeft: '3px' }}>Passes 🎟️</span>
               </div>
               <button
                 type="button"
@@ -1824,6 +1840,14 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <span>Dream | Learn | Build</span>
         </div>
       </footer>
+
+      {/* Profile Registered Events & QR Passes Modal */}
+      <ProfileRegistrationsModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={currentUser}
+        onNavigateEvents={onOpenEvents}
+      />
     </div>
   );
 }

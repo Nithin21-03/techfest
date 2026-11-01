@@ -37,7 +37,33 @@ h2{font-weight:700;text-transform:uppercase;letter-spacing:.14em;line-height:1.0
 .btnAuthSignup:hover,.btnAuthSignup:focus-visible{filter:brightness(1.12);box-shadow:0 0 24px rgba(63,216,255,.55),0 0 45px rgba(47,123,255,.35);transform:translateY(-1px) scale(1.02)}
 .btnAuthSignup:active{transform:translateY(0) scale(.98);filter:brightness(1.05)}
 .userSessionGroup{display:inline-flex;align-items:center;gap:8px}
-.userSessionBadge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,216,255,.12);border:1px solid rgba(63,216,255,.35);border-radius:99px;padding:5px 12px;font-size:.76rem;font-weight:600;color:#8fe6ff;max-width:clamp(110px,24vw,170px)}
+.userSessionBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  background:rgba(63,216,255,.12);
+  border:1px solid rgba(63,216,255,.35);
+  border-radius:99px;
+  padding:5px 12px;
+  font-size:.76rem;
+  font-weight:600;
+  color:#8fe6ff;
+  max-width:clamp(120px,32vw,220px);
+  cursor:pointer;
+  transition:all .22s cubic-bezier(.16,1,.3,1);
+  user-select:none;
+}
+.userSessionBadge:hover, .userSessionBadge:focus-visible{
+  background:rgba(63,216,255,.24);
+  border-color:#3fd8ff;
+  box-shadow:0 0 16px rgba(63,216,255,.5), inset 0 0 8px rgba(63,216,255,.2);
+  transform:translateY(-1px);
+  color:#fff;
+  outline:none;
+}
+.userSessionBadge:active{
+  transform:translateY(0);
+}
 .userSessionBadge .userName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block}
 .btnLogout{padding:6px 14px!important;font-size:.72rem!important;min-width:auto!important}
 
