@@ -909,3 +909,317 @@ export async function authenticateUser({ identifier, password }) {
     }
   };
 }
+
+/**
+ * Register a new user in PostgreSQL and memory persistent storage
+ */
+export async function registerUser({ username, email, password, name }) {
+  if (!username || !email || !password) {
+    return { success: false, error: 'MISSING_FIELDS', message: 'Username, email and password are required.' };
+  }
+  if (password.length < 6) {
+    return { success: false, error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters long.' };
+  }
+
+  const cleanUser = username.toLowerCase().trim();
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanName = (name || username).trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  // Check duplicate in memory first
+  const memExisting = memoryUsers.find(
+    (u) => u.username.toLowerCase() === cleanUser || u.email.toLowerCase() === cleanEmail
+  );
+  if (memExisting) {
+    return {
+      success: false,
+      error: 'USER_EXISTS',
+      message: 'An account with this username or email already exists. Please sign in instead.'
+    };
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const now = new Date().toISOString();
+
+  if (isPostgresConnected && pool) {
+    try {
+      // Check existing in DB
+      const checkRes = await pool.query(
+        'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2) LIMIT 1',
+        [cleanUser, cleanEmail]
+      );
+      if (checkRes.rows && checkRes.rows.length > 0) {
+        return {
+          success: false,
+          error: 'USER_EXISTS',
+          message: 'An account with this username or email already exists. Please sign in instead.'
+        };
+      }
+
+      await pool.query(
+        `INSERT INTO users (username, email, password_hash, salt, name, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [cleanUser, cleanEmail, passwordHash, salt, cleanName, now]
+      );
+    } catch (dbErr) {
+      console.warn('PostgreSQL user registration notice:', dbErr.message);
+    }
+  }
+
+  // Always update memory & atomic storage
+  const userRecord = {
+    id: memoryUsers.length + 1,
+    username: cleanUser,
+    email: cleanEmail,
+    password_hash: passwordHash,
+    salt,
+    name: cleanName,
+    created_at: now
+  };
+  memoryUsers.push(userRecord);
+  writeAtomic(usersFile, memoryUsers);
+
+  return {
+    success: true,
+    user: {
+      username: cleanUser,
+      email: cleanEmail,
+      name: cleanName
+    }
+  };
+}
+
+/**
+ * Authenticate user with password verification
+ */
+export async function authenticateUser({ identifier, password }) {
+  if (!identifier || !password) {
+    return { success: false, error: 'MISSING_FIELDS', message: 'Identifier and password are required.' };
+  }
+
+  const cleanId = identifier.toLowerCase().trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  let userRecord = null;
+
+  if (isPostgresConnected && pool) {
+    try {
+      const res = await pool.query(
+        'SELECT * FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) LIMIT 1',
+        [cleanId]
+      );
+      if (res.rows && res.rows.length > 0) {
+        userRecord = res.rows[0];
+      }
+    } catch (dbErr) {
+      console.warn('PostgreSQL authenticate user notice:', dbErr.message);
+    }
+  }
+
+  // Fallback to memory
+  if (!userRecord) {
+    userRecord = memoryUsers.find(
+      (u) => u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId
+    );
+  }
+
+  if (!userRecord) {
+    return {
+      success: false,
+      error: 'USER_NOT_FOUND',
+      message: 'No account found with this username or email. Please sign up first.'
+    };
+  }
+
+  // Verify password hash
+  const calculatedHash = crypto.pbkdf2Sync(password, userRecord.salt, 1000, 64, 'sha512').toString('hex');
+  const hashBuf = Buffer.from(calculatedHash, 'hex');
+  const storedBuf = Buffer.from(userRecord.password_hash, 'hex');
+
+  const isMatch = hashBuf.length === storedBuf.length && crypto.timingSafeEqual(hashBuf, storedBuf);
+
+  if (!isMatch) {
+    return {
+      success: false,
+      error: 'INVALID_PASSWORD',
+      message: 'Incorrect password. Please verify your credentials and try again.'
+    };
+  }
+
+  return {
+    success: true,
+    user: {
+      username: userRecord.username,
+      email: userRecord.email,
+      name: userRecord.name || userRecord.username
+    }
+  };
+}
+
+/**
+ * Register a new user in PostgreSQL and memory persistent storage
+ */
+export async function registerUser({ username, email, password, name }) {
+  if (!username || !email || !password) {
+    return { success: false, error: 'MISSING_FIELDS', message: 'Username, email and password are required.' };
+  }
+  if (password.length < 6) {
+    return { success: false, error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters long.' };
+  }
+
+  const cleanUser = username.toLowerCase().trim();
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanName = (name || username).trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  // Check duplicate in memory first
+  const memExisting = memoryUsers.find(
+    (u) => u.username.toLowerCase() === cleanUser || u.email.toLowerCase() === cleanEmail
+  );
+  if (memExisting) {
+    return {
+      success: false,
+      error: 'USER_EXISTS',
+      message: 'An account with this username or email already exists. Please sign in instead.'
+    };
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const now = new Date().toISOString();
+
+  if (isPostgresConnected && pool) {
+    try {
+      // Check existing in DB
+      const checkRes = await pool.query(
+        'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2) LIMIT 1',
+        [cleanUser, cleanEmail]
+      );
+      if (checkRes.rows && checkRes.rows.length > 0) {
+        return {
+          success: false,
+          error: 'USER_EXISTS',
+          message: 'An account with this username or email already exists. Please sign in instead.'
+        };
+      }
+
+      await pool.query(
+        `INSERT INTO users (username, email, password_hash, salt, name, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [cleanUser, cleanEmail, passwordHash, salt, cleanName, now]
+      );
+    } catch (dbErr) {
+      console.warn('PostgreSQL user registration notice:', dbErr.message);
+    }
+  }
+
+  // Always update memory & atomic storage
+  const userRecord = {
+    id: memoryUsers.length + 1,
+    username: cleanUser,
+    email: cleanEmail,
+    password_hash: passwordHash,
+    salt,
+    name: cleanName,
+    created_at: now
+  };
+  memoryUsers.push(userRecord);
+  writeAtomic(usersFile, memoryUsers);
+
+  return {
+    success: true,
+    user: {
+      username: cleanUser,
+      email: cleanEmail,
+      name: cleanName
+    }
+  };
+}
+
+/**
+ * Authenticate user with password verification
+ */
+export async function authenticateUser({ identifier, password }) {
+  if (!identifier || !password) {
+    return { success: false, error: 'MISSING_FIELDS', message: 'Identifier and password are required.' };
+  }
+
+  const cleanId = identifier.toLowerCase().trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  let userRecord = null;
+
+  if (isPostgresConnected && pool) {
+    try {
+      const res = await pool.query(
+        'SELECT * FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) LIMIT 1',
+        [cleanId]
+      );
+      if (res.rows && res.rows.length > 0) {
+        userRecord = res.rows[0];
+      }
+    } catch (dbErr) {
+      console.warn('PostgreSQL authenticate user notice:', dbErr.message);
+    }
+  }
+
+  // Fallback to memory
+  if (!userRecord) {
+    userRecord = memoryUsers.find(
+      (u) => u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId
+    );
+  }
+
+  if (!userRecord) {
+    return {
+      success: false,
+      error: 'USER_NOT_FOUND',
+      message: 'No account found with this username or email. Please sign up first.'
+    };
+  }
+
+  // Verify password hash
+  const calculatedHash = crypto.pbkdf2Sync(password, userRecord.salt, 1000, 64, 'sha512').toString('hex');
+  const hashBuf = Buffer.from(calculatedHash, 'hex');
+  const storedBuf = Buffer.from(userRecord.password_hash, 'hex');
+
+  const isMatch = hashBuf.length === storedBuf.length && crypto.timingSafeEqual(hashBuf, storedBuf);
+
+  if (!isMatch) {
+    return {
+      success: false,
+      error: 'INVALID_PASSWORD',
+      message: 'Incorrect password. Please verify your credentials and try again.'
+    };
+  }
+
+  return {
+    success: true,
+    user: {
+      username: userRecord.username,
+      email: userRecord.email,
+      name: userRecord.name || userRecord.username
+    }
+  };
+}

@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   Database,
   Server,
+  QrCode,
 } from 'lucide-react';
 import { festConfig } from '../config/festConfig';
 import { soundFX } from '../utils/audioSynth';
@@ -379,6 +380,14 @@ export default function AdminPage({ onNavigateHome }) {
                 Admin Command Center
               </span>
             </div>
+            <a
+              href="#verify"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 font-mono text-xs uppercase tracking-wider transition-all"
+              title="Launch Standalone Gate & Food QR Scanner"
+            >
+              <QrCode size={13} />
+              <span className="hidden sm:inline">QR Pass Scanner</span>
+            </a>
             {token && (
               <button
                 onClick={handleLogout}

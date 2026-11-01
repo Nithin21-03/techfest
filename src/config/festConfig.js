@@ -274,7 +274,7 @@ export const festConfig = {
       prize: "₹45,000 Pool",
       teamSize: "2 - 4 Members",
       is_registration_open: true,
-      image: "/poster-theme.jpg",
+      image: "/crime.jpeg",
       summary: "Immersive simulated physical and cyber crime scene. Uncover clues, decrypt evidence, and solve the murder case.",
       description:
         "Step through police tape into a high-stakes investigation. Teams analyze physical clues at the mock crime scene, retrieve deleted disk logs, decrypt suspicious network packets, interview suspects, and formulate the final charge sheet.",

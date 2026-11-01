@@ -367,25 +367,37 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       const connectEl = document.getElementById('connect');
       const contactEl = document.getElementById('contact');
 
+      const isMobile = window.innerWidth <= 768;
+
       // 1. HERO ANIMATION
       if (homeEl) {
         const hTop = homeEl.offsetTop;
         const hRange = Math.max(1, homeEl.offsetHeight - vh);
         const ph = clamp((scrollY - hTop) / hRange);
         if (figRef.current) {
-          const z = Math.pow(ph, 1.45);
-          figRef.current.style.transform = `translate3d(${-mx * 16 * (1 - ph)}px, ${-my * 10 * (1 - ph)}px, 0) scale(${1 + z * 1.35})`;
-          figRef.current.style.opacity = String(1 - smoothstep(0.65, 0.95, ph));
+          if (isMobile) {
+            figRef.current.style.transform = 'none';
+            figRef.current.style.opacity = '0.55';
+          } else {
+            const z = Math.pow(ph, 1.45);
+            figRef.current.style.transform = `translate3d(${-mx * 16 * (1 - ph)}px, ${-my * 10 * (1 - ph)}px, 0) scale(${1 + z * 1.35})`;
+            figRef.current.style.opacity = String(1 - smoothstep(0.65, 0.95, ph));
+          }
         }
         if (coreRef.current) {
-          coreRef.current.style.opacity = String(0.2 + 0.8 * ph);
+          coreRef.current.style.opacity = isMobile ? '0.85' : String(0.2 + 0.8 * ph);
         }
         if (heroRef.current) {
-          heroRef.current.style.transform = `translate3d(${mx * 7}px, ${-ph * vh * 0.55 + my * 4}px, 0)`;
-          heroRef.current.style.opacity = String(1 - smoothstep(0.18, 0.65, ph));
+          if (isMobile) {
+            heroRef.current.style.transform = 'none';
+            heroRef.current.style.opacity = '1';
+          } else {
+            heroRef.current.style.transform = `translate3d(${mx * 7}px, ${-ph * vh * 0.55 + my * 4}px, 0)`;
+            heroRef.current.style.opacity = String(1 - smoothstep(0.18, 0.65, ph));
+          }
         }
         if (cueRef.current) {
-          cueRef.current.style.opacity = String(1 - smoothstep(0, 0.15, ph));
+          cueRef.current.style.opacity = isMobile ? '0.9' : String(1 - smoothstep(0, 0.15, ph));
         }
       }
 
@@ -395,40 +407,48 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         const eRange = Math.max(1, enterEl.offsetHeight - vh);
         const pe = clamp((scrollY - eTop) / eRange);
         if (skyRef.current) {
-          skyRef.current.style.transform = `translate3d(${mx * 5}px, ${my * 3}px, 0) scale(${(1.01 + pe * 0.03).toFixed(4)})`;
+          skyRef.current.style.transform = isMobile ? 'none' : `translate3d(${mx * 5}px, ${my * 3}px, 0) scale(${(1.01 + pe * 0.03).toFixed(4)})`;
         }
         if (fgRef.current) {
-          fgRef.current.style.transform = `translate3d(${-mx * 8}px, ${-my * 4}px, 0) scale(${(1.03 + pe * 0.06).toFixed(4)})`;
+          fgRef.current.style.transform = isMobile ? 'none' : `translate3d(${-mx * 8}px, ${-my * 4}px, 0) scale(${(1.03 + pe * 0.06).toFixed(4)})`;
         }
         if (hdWrapRef.current) {
-          const pk = smoothstep(0.06, 0.38, pe);
-          const pOut = 1 - smoothstep(0.92, 1.0, pe);
-          hdWrapRef.current.style.opacity = (pk * pOut).toFixed(3);
-          const xOff = vw <= 860 ? 0 : ((1 - pk) * vw * 0.25).toFixed(1);
-          hdWrapRef.current.style.transform = `translate3d(${xOff}px, ${((0.5 - pe) * vh * 0.1).toFixed(1)}px, 0) scale(${(0.9 + 0.1 * pk).toFixed(3)})`;
+          if (isMobile) {
+            hdWrapRef.current.style.opacity = '0.45';
+            hdWrapRef.current.style.transform = 'none';
+          } else {
+            const pk = smoothstep(0.01, 0.18, pe);
+            const pOut = Math.max(0.70, 1 - smoothstep(0.88, 1.0, pe) * 0.30);
+            const op = Math.max(0.75, pk * pOut);
+            hdWrapRef.current.style.opacity = op.toFixed(3);
+            const xOff = vw <= 860 ? 0 : ((1 - pk) * vw * 0.12).toFixed(1);
+            hdWrapRef.current.style.transform = `translate3d(${xOff}px, ${((0.5 - pe) * vh * 0.08).toFixed(1)}px, 0) scale(${(0.96 + 0.04 * pk).toFixed(3)})`;
+          }
         }
-        if (hdTiltRef.current) {
+        if (hdTiltRef.current && !isMobile) {
           hdTiltRef.current.style.transform = `perspective(1000px) rotateY(${mx * 9}deg) rotateX(${-my * 7}deg)`;
         }
 
         // Animate motivational typography: Dream. Learn. Build. Explore / Innovate / Create
         const eElements = [e0Ref.current, e1Ref.current, e2Ref.current, e3Ref.current, e4Ref.current, e5Ref.current, e6Ref.current];
-        const thresholds = [0.02, 0.06, 0.14, 0.22, 0.30, 0.40, 0.48];
+        const thresholds = [0.01, 0.03, 0.06, 0.10, 0.15, 0.20, 0.25];
         eElements.forEach((el, idx) => {
           if (!el) return;
-          if (RM) {
+          if (RM || isMobile) {
+            // ALWAYS 100% VISIBLE ON MOBILE — NO EMPTY GAPS OR UNNECESSARY SCROLL DELAYS!
             el.style.opacity = '1';
             el.style.transform = 'none';
             el.style.filter = 'none';
             return;
           }
           const t = thresholds[idx];
-          const k = smoothstep(t, t + 0.10, pe);
-          const pOut = 1 - smoothstep(0.92, 1.0, pe);
-          const op = Math.max(0, k * pOut);
+          const k = smoothstep(t, t + 0.06, pe);
+          // Never drop below 0.75 while in section so it is NEVER an empty screen!
+          const pOut = Math.max(0.70, 1 - smoothstep(0.88, 1.0, pe) * 0.30);
+          const op = Math.max(0.75, k * pOut);
           el.style.opacity = op.toFixed(3);
-          el.style.transform = `translateY(${((1 - k) * 30).toFixed(1)}px)`;
-          el.style.filter = k < 0.98 ? `blur(${((1 - k) * 6).toFixed(1)}px)` : 'none';
+          el.style.transform = `translateY(${((1 - k) * 16).toFixed(1)}px)`;
+          el.style.filter = 'none';
         });
       }
 
@@ -441,29 +461,52 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         const zoom = smoothstep(0.3, 0.58, pv);
 
         if (pctRef.current) {
-          pctRef.current.textContent = String(Math.round(clamp(pv / 0.5) * 100)).padStart(2, '0') + '%';
+          pctRef.current.textContent = isMobile ? '100%' : String(Math.round(clamp(pv / 0.5) * 100)).padStart(2, '0') + '%';
         }
         if (eyeRef.current) {
-          const eyeScale = (0.3 + 0.7 * open) * Math.exp(Math.log(5) * zoom);
-          const eyeOp = (0.2 + 0.8 * open) * (1 - zoom * 0.8);
-          eyeRef.current.style.transform = `translate3d(-50%, -55%, 0) scale(${eyeScale.toFixed(3)})`;
-          eyeRef.current.style.opacity = eyeOp <= 0.01 ? '0' : eyeOp.toFixed(3);
+          if (isMobile) {
+            eyeRef.current.style.transform = 'translate3d(-50%, -50%, 0) scale(1)';
+            eyeRef.current.style.opacity = '0.75';
+          } else {
+            const eyeScale = (0.3 + 0.7 * open) * Math.exp(Math.log(5) * zoom);
+            const eyeOp = (0.2 + 0.8 * open) * (1 - zoom * 0.8);
+            eyeRef.current.style.transform = `translate3d(-50%, -55%, 0) scale(${eyeScale.toFixed(3)})`;
+            eyeRef.current.style.opacity = eyeOp <= 0.01 ? '0' : eyeOp.toFixed(3);
+          }
         }
         if (reticleRef.current) {
-          reticleRef.current.style.opacity = (open * (1 - smoothstep(0.76, 0.92, pv))).toFixed(3);
-          reticleRef.current.style.transform = `scale(${(0.6 + 0.4 * open + zoom * 1.2).toFixed(3)})`;
+          if (isMobile) {
+            reticleRef.current.style.opacity = '0.85';
+            reticleRef.current.style.transform = 'scale(1)';
+          } else {
+            reticleRef.current.style.opacity = (open * (1 - smoothstep(0.76, 0.92, pv))).toFixed(3);
+            reticleRef.current.style.transform = `scale(${(0.6 + 0.4 * open + zoom * 1.2).toFixed(3)})`;
+          }
         }
         if (regOverlayRef.current) {
-          const kRev = smoothstep(0.58, 0.76, pv);
-          regOverlayRef.current.style.opacity = kRev.toFixed(3);
-          regOverlayRef.current.style.visibility = kRev > 0.05 ? 'visible' : 'hidden';
-          regOverlayRef.current.style.pointerEvents = kRev > 0.5 ? 'auto' : 'none';
+          if (isMobile) {
+            regOverlayRef.current.style.opacity = '1';
+            regOverlayRef.current.style.visibility = 'visible';
+            regOverlayRef.current.style.pointerEvents = 'auto';
+            regOverlayRef.current.style.transform = 'translate(-50%, -50%)';
+          } else {
+            const kRev = smoothstep(0.58, 0.76, pv);
+            regOverlayRef.current.style.opacity = kRev.toFixed(3);
+            regOverlayRef.current.style.visibility = kRev > 0.05 ? 'visible' : 'hidden';
+            regOverlayRef.current.style.pointerEvents = kRev > 0.5 ? 'auto' : 'none';
+          }
         }
         if (ctaRef.current) {
-          const kRoad = smoothstep(0.64, 0.82, pv);
-          ctaRef.current.style.opacity = kRoad.toFixed(3);
-          ctaRef.current.style.visibility = kRoad > 0.05 ? 'visible' : 'hidden';
-          ctaRef.current.style.pointerEvents = kRoad > 0.5 ? 'auto' : 'none';
+          if (isMobile) {
+            ctaRef.current.style.opacity = '1';
+            ctaRef.current.style.visibility = 'visible';
+            ctaRef.current.style.pointerEvents = 'auto';
+          } else {
+            const kRoad = smoothstep(0.64, 0.82, pv);
+            ctaRef.current.style.opacity = kRoad.toFixed(3);
+            ctaRef.current.style.visibility = kRoad > 0.05 ? 'visible' : 'hidden';
+            ctaRef.current.style.pointerEvents = kRoad > 0.5 ? 'auto' : 'none';
+          }
         }
       }
 
@@ -474,25 +517,35 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         const pc = clamp((scrollY - cTop) / cRange);
         const pConEnter = smoothstep(0, 0.25, pc);
         if (conHeadRef.current) {
-          conHeadRef.current.style.opacity = (pConEnter <= 0.005 ? 0 : pConEnter).toFixed(3);
-          conHeadRef.current.style.transform = `translateY(${(1 - pConEnter) * 20}px)`;
+          if (isMobile) {
+            conHeadRef.current.style.opacity = '1';
+            conHeadRef.current.style.transform = 'none';
+          } else {
+            conHeadRef.current.style.opacity = (pConEnter <= 0.005 ? 0 : pConEnter).toFixed(3);
+            conHeadRef.current.style.transform = `translateY(${(1 - pConEnter) * 20}px)`;
+          }
         }
-        if (net1Ref.current) {
+        if (net1Ref.current && !isMobile) {
           net1Ref.current.style.transform = `translate3d(${-pc * 4}%, ${-pc * 6}%, 0) scale(${(1.02 + pc * 0.05).toFixed(3)})`;
         }
-        if (net2Ref.current) {
+        if (net2Ref.current && !isMobile) {
           net2Ref.current.style.transform = `translate3d(${(pc * 4 - 2)}%, ${(pc * 6 - 2)}%, 0) scale(${(1.05 - pc * 0.04).toFixed(3)})`;
         }
-        if (net3Ref.current) {
+        if (net3Ref.current && !isMobile) {
           net3Ref.current.style.transform = `translate3d(${(-pc * 5 + 2)}%, ${(-pc * 8 + 3)}%, 0) scale(${(1.03 + pc * 0.06).toFixed(3)})`;
         }
         const cardRefs = [c1Ref.current, c2Ref.current, c3Ref.current];
         const thresholds = [0.15, 0.35, 0.55];
         thresholds.forEach((t, i) => {
           if (cardRefs[i]) {
-            const e = smoothstep(t, t + 0.15, pc);
-            cardRefs[i].style.opacity = e.toFixed(3);
-            cardRefs[i].style.transform = `translateY(${(1 - e) * 40}px) scale(${(0.96 + 0.04 * e).toFixed(3)})`;
+            if (isMobile) {
+              cardRefs[i].style.opacity = '1';
+              cardRefs[i].style.transform = 'none';
+            } else {
+              const e = smoothstep(t, t + 0.15, pc);
+              cardRefs[i].style.opacity = e.toFixed(3);
+              cardRefs[i].style.transform = `translateY(${(1 - e) * 40}px) scale(${(0.96 + 0.04 * e).toFixed(3)})`;
+            }
           }
         });
       }
