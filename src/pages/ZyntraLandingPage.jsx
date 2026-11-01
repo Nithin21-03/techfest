@@ -73,6 +73,15 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
   const [adminKey, setAdminKey] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showAdminKey, setShowAdminKey] = useState(false);
+  const [toastNotice, setToastNotice] = useState('');
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const sess = localStorage.getItem('zyntra_session');
+      return sess ? JSON.parse(sess) : null;
+    } catch (_) {
+      return null;
+    }
+  });
 
   // Refs for animations
   const starsRef = useRef(null);
@@ -566,23 +575,34 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           scope: 'openid email profile',
           callback: async (resp) => {
             if (resp && resp.access_token) {
+              let userSession = null;
               try {
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                   headers: { Authorization: `Bearer ${resp.access_token}` },
                 });
                 const info = await res.json();
                 if (info?.email) {
-                  localStorage.setItem('zyntra_session', JSON.stringify({
+                  userSession = {
                     email: info.email.toLowerCase(),
                     name: info.name || info.email.split('@')[0],
                     picture: info.picture,
                     isGoogle: true,
-                  }));
+                  };
+                  localStorage.setItem('zyntra_session', JSON.stringify(userSession));
+                  setCurrentUser(userSession);
                 }
               } catch (_) { }
+
               setAuthModalOpen(false);
-              if (authRole === 'admin') onOpenAdmin?.();
-              else onOpenEvents?.();
+              if (authRole === 'admin') {
+                onOpenAdmin?.();
+              } else if (authMode === 'signup') {
+                // STAY ON LANDING PAGE AFTER SIGNING UP
+                setToastNotice(`Account registered! Welcome to ZYNTRA'26, ${userSession?.name || 'Explorer'}.`);
+                setTimeout(() => setToastNotice(''), 4500);
+              } else {
+                onOpenEvents?.();
+              }
             }
           },
           error_callback: (err) => {
@@ -598,13 +618,23 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         console.warn('GIS TokenClient init error:', err);
         setAuthModalOpen(false);
         if (authRole === 'admin') onOpenAdmin?.();
-        else onOpenEvents?.();
+        else if (authMode === 'signup') {
+          setToastNotice("Account registered! Welcome to ZYNTRA'26.");
+          setTimeout(() => setToastNotice(''), 4500);
+        } else {
+          onOpenEvents?.();
+        }
       }
     } else {
       // Fallback
       setAuthModalOpen(false);
       if (authRole === 'admin') onOpenAdmin?.();
-      else onOpenEvents?.();
+      else if (authMode === 'signup') {
+        setToastNotice("Account registered! Welcome to ZYNTRA'26.");
+        setTimeout(() => setToastNotice(''), 4500);
+      } else {
+        onOpenEvents?.();
+      }
     }
   };
 
@@ -623,8 +653,32 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         setAuthFeedback({ type: 'error', msg: 'Please enter your username and password' });
         return;
       }
+
+      const cleanId = loginId.trim();
+      const isEmail = cleanId.includes('@');
+      const userSession = {
+        email: isEmail ? cleanId.toLowerCase() : `${cleanId.toLowerCase()}@snpsu.edu.in`,
+        name: cleanId.split('@')[0],
+        isGoogle: false,
+      };
+
+      try {
+        localStorage.setItem('zyntra_session', JSON.stringify(userSession));
+        setCurrentUser(userSession);
+      } catch (_) {}
+
       setAuthModalOpen(false);
-      onOpenEvents?.();
+      setLoginId('');
+      setLoginPass('');
+
+      if (authMode === 'signup') {
+        // STRICT REQUIREMENT: AFTER SIGNING UP, STAY ON THE LANDING PAGE!
+        setToastNotice(`Account created successfully! Welcome to ZYNTRA'26, ${userSession.name}.`);
+        setTimeout(() => setToastNotice(''), 4500);
+      } else {
+        // If login, proceed to events portal
+        onOpenEvents?.();
+      }
     }
   };
 
@@ -634,6 +688,33 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       <canvas id="stars" ref={starsRef} />
       <div id="progress" ref={progressRef} />
       <div id="glow" ref={glowRef} aria-hidden="true" />
+
+      {/* Welcome Toast Notification */}
+      {toastNotice && (
+        <div style={{
+          position: 'fixed',
+          top: '78px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+          background: 'rgba(7, 24, 66, 0.96)',
+          border: '1px solid #3fd8ff',
+          borderRadius: '99px',
+          padding: '10px 24px',
+          color: '#ffffff',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          boxShadow: '0 10px 30px rgba(0, 242, 255, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          backdropFilter: 'blur(16px)',
+          pointerEvents: 'none',
+        }}>
+          <span style={{ color: '#4ade80', fontSize: '1rem' }}>✓</span>
+          <span>{toastNotice}</span>
+        </div>
+      )}
 
       {/* TOP HEADER */}
       <header id="bar">
@@ -681,22 +762,68 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         </nav>
 
         <div className="authGroup">
-          <button
-            type="button"
-            className="btnAuth btnAuthLogin"
-            onClick={() => openAuth('student', 'login')}
-            aria-label="Login to ZYNTRA'26"
-          >
-            <span>Login</span>
-          </button>
-          <button
-            type="button"
-            className="btnAuth btnAuthSignup"
-            onClick={() => openAuth('student', 'signup')}
-            aria-label="Sign up for ZYNTRA'26"
-          >
-            <span>Sign Up</span>
-          </button>
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(63, 216, 255, 0.12)',
+                  border: '1px solid rgba(63, 216, 255, 0.35)',
+                  borderRadius: '99px',
+                  padding: '5px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#8fe6ff',
+                }}
+              >
+                {currentUser.picture ? (
+                  <img
+                    src={currentUser.picture}
+                    alt=""
+                    style={{ width: '18px', height: '18px', borderRadius: '50%' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '0.85rem' }}>👤</span>
+                )}
+                <span>{currentUser.name || currentUser.email.split('@')[0]}</span>
+              </div>
+              <button
+                type="button"
+                className="btnAuth btnAuthLogin"
+                style={{ padding: '6px 14px', fontSize: '0.75rem', minWidth: 'auto' }}
+                onClick={() => {
+                  try { localStorage.removeItem('zyntra_session'); } catch (_) {}
+                  setCurrentUser(null);
+                  setToastNotice('Signed out of ZYNTRA session.');
+                  setTimeout(() => setToastNotice(''), 3000);
+                }}
+                aria-label="Logout"
+              >
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btnAuth btnAuthLogin"
+                onClick={() => openAuth('student', 'login')}
+                aria-label="Login to ZYNTRA'26"
+              >
+                <span>Login</span>
+              </button>
+              <button
+                type="button"
+                className="btnAuth btnAuthSignup"
+                onClick={() => openAuth('student', 'signup')}
+                aria-label="Sign up for ZYNTRA'26"
+              >
+                <span>Sign Up</span>
+              </button>
+            </>
+          )}
         </div>
       </header>
 
