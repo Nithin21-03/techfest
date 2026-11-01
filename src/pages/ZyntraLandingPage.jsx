@@ -558,18 +558,46 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
   const handleGoogleLogin = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (clientId && window.google?.accounts?.oauth2) {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: 'openid email profile',
-        callback: (resp) => {
-          if (resp && resp.access_token) {
-            setAuthModalOpen(false);
-            if (authRole === 'admin') onOpenAdmin?.();
-            else onOpenEvents?.();
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'openid email profile',
+          callback: async (resp) => {
+            if (resp && resp.access_token) {
+              try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${resp.access_token}` },
+                });
+                const info = await res.json();
+                if (info?.email) {
+                  localStorage.setItem('zyntra_session', JSON.stringify({
+                    email: info.email.toLowerCase(),
+                    name: info.name || info.email.split('@')[0],
+                    picture: info.picture,
+                    isGoogle: true,
+                  }));
+                }
+              } catch (_) {}
+              setAuthModalOpen(false);
+              if (authRole === 'admin') onOpenAdmin?.();
+              else onOpenEvents?.();
+            }
+          },
+          error_callback: (err) => {
+            console.warn('Google Sign-In error:', err);
+            setAuthFeedback({
+              type: 'error',
+              msg: 'Google OAuth origin mismatch: Please add https://zyntra26.vercel.app to Authorized JavaScript Origins in Google Cloud Console, or enter your email below to continue.'
+            });
           }
-        }
-      });
-      client.requestAccessToken();
+        });
+        client.requestAccessToken({ prompt: 'select_account' });
+      } catch (err) {
+        console.warn('GIS TokenClient init error:', err);
+        setAuthModalOpen(false);
+        if (authRole === 'admin') onOpenAdmin?.();
+        else onOpenEvents?.();
+      }
     } else {
       // Fallback
       setAuthModalOpen(false);
