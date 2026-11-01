@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ZyntraLandingPage from './pages/ZyntraLandingPage';
 import ZyntraEventsPage from './pages/ZyntraEventsPage';
 import AdminPage from './pages/AdminPage';
+import TicketVerificationPage from './pages/TicketVerificationPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState(() => {
@@ -9,6 +10,7 @@ export default function App() {
       const hash = window.location.hash;
       if (hash.startsWith('#admin')) return 'admin';
       if (hash.startsWith('#events')) return 'events';
+      if (hash.startsWith('#ticket') || hash.startsWith('#verify')) return 'ticket-verify';
     }
     return 'landing'; // Default initial page: Fest Landing Page
   });
@@ -21,6 +23,8 @@ export default function App() {
         setCurrentPage('admin');
       } else if (hash.startsWith('#events')) {
         setCurrentPage('events');
+      } else if (hash.startsWith('#ticket') || hash.startsWith('#verify')) {
+        setCurrentPage('ticket-verify');
       } else {
         setCurrentPage('landing');
       }
@@ -47,6 +51,14 @@ export default function App() {
     window.location.hash = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (currentPage === 'ticket-verify') {
+    return (
+      <TicketVerificationPage
+        onNavigateHome={handleNavigateHome}
+      />
+    );
+  }
 
   if (currentPage === 'admin') {
     return (

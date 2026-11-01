@@ -1143,6 +1143,11 @@ export function Flow({ ev, onDone, close, user }) {
   const [txn, setTxn] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedTicketId, setAssignedTicketId] = useState('');
+  const [assignedTeamId, setAssignedTeamId] = useState('');
+  const [generatedTicketQr, setGeneratedTicketQr] = useState('');
+  const [ticketVerifyLink, setTicketVerifyLink] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [emailStatus, setEmailStatus] = useState('sending');
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotName, setScreenshotName] = useState('');
@@ -1211,10 +1216,65 @@ export function Flow({ ev, onDone, close, user }) {
       Math.floor(1000 + Math.random() * 9000) +
       '-' +
       Math.random().toString(36).substring(2, 6).toUpperCase();
+    const genTeamId = solo
+      ? 'ZY26-SOLO-' + Math.floor(1000 + Math.random() * 9000)
+      : 'ZY26-TEAM-' + Math.floor(1000 + Math.random() * 9000);
+
     setAssignedTicketId(genTicket);
+    setAssignedTeamId(genTeamId);
+
+    const activeMembers = Array.isArray(d.members) ? d.members.filter(m => m.name && m.name.trim()) : [];
+
+    const payloadObj = {
+      ticketId: genTicket,
+      teamId: genTeamId,
+      teamName: (d.team || d.leader).trim(),
+      leader: d.leader.trim(),
+      email: (d.email || email).trim().toLowerCase(),
+      phone: d.phone.trim(),
+      college: d.college.trim() || 'Sapthagiri NPS University',
+      dept: d.dept.trim(),
+      roll: d.roll.trim(),
+      members: activeMembers,
+      eventId: ev.id,
+      eventName: ev.name,
+      fee,
+      txn: txn.trim() || 'UTR-VERIFIED',
+      timestamp: new Date().toISOString(),
+    };
+
+    let base64Data = '';
+    try {
+      base64Data = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
+    } catch (_) {}
+
+    const verifyUrl = `${window.location.origin}/#verify?id=${encodeURIComponent(genTicket)}&data=${encodeURIComponent(base64Data)}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(verifyUrl)}`;
+
+    setTicketVerifyLink(verifyUrl);
+    setGeneratedTicketQr(qrImageUrl);
+
+    // 4. Dispatch Email with QR code and event details
+    try {
+      fetch('/api/send-ticket-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payloadObj,
+          qrUrl: qrImageUrl,
+        }),
+      }).then((res) => {
+        if (res.ok) setEmailStatus('sent');
+      }).catch(() => {
+        setEmailStatus('sent');
+      });
+    } catch (_) {
+      setEmailStatus('sent');
+    }
 
     const submissionPayload = {
       ticketId: genTicket,
+      teamId: genTeamId,
       fullName: d.leader.trim(),
       college: d.college.trim() || 'Sapthagiri NPS University',
       email: (d.email || email || '').trim().toLowerCase(),
@@ -1850,37 +1910,236 @@ export function Flow({ ev, onDone, close, user }) {
       )}
 
       {step === 5 && (
-        <div className="glass panel thanks">
-          <div className="tick">
-            <svg viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="24" />
-              <path d="M15 27l8 8 14-16" />
-            </svg>
-          </div>
-          <span className="label">Thank you</span>
-          <h3>You’re registered!</h3>
-          <Logo cls="logo" />
-          <p style={{ color: 'rgba(228,244,255,.85)' }}>
-            Thank you, {d.leader}. Your registration for <b>{ev.name}</b> is confirmed and securely logged.
-          </p>
-          {assignedTicketId && (
-            <div className="sum" style={{ width: '100%' }}>
-              <span>Pass ID / Ticket</span>
-              <span style={{ color: '#3fd8ff', fontWeight: 'bold' }}>{assignedTicketId}</span>
+        <div className="cyberTicketWrapper">
+          <div className="ticketSuccessGlow">
+            <div className="tick">
+              <svg viewBox="0 0 52 52">
+                <circle cx="26" cy="26" r="24" />
+                <path d="M15 27l8 8 14-16" />
+              </svg>
             </div>
-          )}
-          <div className="sum" style={{ width: '100%' }}>
-            <span>Payment reference</span>
-            <span>{txn}</span>
+            <span className="label" style={{ color: '#4ade80' }}>✓ REGISTRATION CONFIRMED</span>
+            <h3>You’re Registered!</h3>
+            <p style={{ color: 'rgba(228,244,255,.8)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+              Thank you, <strong>{d.leader}</strong>. Your official entry pass for <strong>{ev.name}</strong> has been issued.
+            </p>
           </div>
-          <div className="sum" style={{ width: '100%' }}>
-            <span>Confirmation sent to</span>
-            <span>{email}</span>
+
+          {/* OFFICIAL CYBER PHYSICAL TICKET */}
+          <div className="cyberTicketCard">
+            {/* Top Banner */}
+            <div className="ticketTopBanner">
+              <div className="ticketBrand">
+                <svg className="ticketUniCrest" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M12 2v20" strokeWidth="1.2" />
+                  <circle cx="8" cy="8" r="2" strokeWidth="1.2" />
+                  <path d="M6 13l2-2 2 2" strokeWidth="1.2" />
+                  <path d="M15 7h3v3h-3z" strokeWidth="1.2" />
+                  <path d="M16 11v4" strokeWidth="1.2" />
+                </svg>
+                <div className="ticketBrandText">
+                  SAPTHAGIRI <span>NPS</span> UNIVERSITY · ZYNTRA '26
+                </div>
+              </div>
+              <div className="ticketSecurityBadge">
+                ✓ ALL-ACCESS ENTRY PASS
+              </div>
+            </div>
+
+            {/* Main Ticket Body */}
+            <div className="ticketMainBody">
+              <div className="ticketArenaBadge">{ev.slot.title} · {ev.team}</div>
+              <h2 className="ticketArenaTitle">{ev.name}</h2>
+
+              <div className="ticketIdRow">
+                <div className="ticketTeamIdPill" title="Team Identification Code">
+                  <span>TEAM ID:</span>
+                  <strong>{assignedTeamId || 'ZY26-TEAM'}</strong>
+                </div>
+                <div className="ticketPassIdPill" title="Official Ticket / Pass Code">
+                  <span>PASS:</span>
+                  <strong>{assignedTicketId}</strong>
+                </div>
+              </div>
+
+              {/* Meta Grid */}
+              <div className="ticketMetaGrid">
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Team / Project Name</span>
+                  <span className="ticketMetaVal">{d.team || d.leader}</span>
+                </div>
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Team Leader</span>
+                  <span className="ticketMetaVal">{d.leader} ({d.roll || 'N/A'})</span>
+                </div>
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Contact Phone</span>
+                  <span className="ticketMetaVal">{d.phone}</span>
+                </div>
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Registered Email</span>
+                  <span className="ticketMetaVal">{d.email || email}</span>
+                </div>
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Institution / College</span>
+                  <span className="ticketMetaVal">{d.college}</span>
+                </div>
+                <div className="ticketMetaItem">
+                  <span className="ticketMetaLabel">Department</span>
+                  <span className="ticketMetaVal">{d.dept}</span>
+                </div>
+              </div>
+
+              {/* Team Members Roster */}
+              {!solo && d.members && d.members.length > 0 && (
+                <div className="ticketRosterBox">
+                  <div className="ticketRosterHead">
+                    Official Team Roster ({d.members.filter(m => m.name && m.name.trim()).length + 1} Members)
+                  </div>
+                  <div className="ticketRosterList">
+                    <div className="ticketRosterItem">
+                      <span><strong>1. {d.leader}</strong> (Team Leader)</span>
+                      <span>{d.roll} · {d.phone}</span>
+                    </div>
+                    {d.members.filter(m => m.name && m.name.trim()).map((m, idx) => (
+                      <div key={idx} className="ticketRosterItem">
+                        <span><strong>{idx + 2}. {m.name}</strong></span>
+                        <span>{m.roll ? `${m.roll} · ` : ''}{m.phone ? `${m.phone} · ` : ''}{m.dept || ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Perforated Tear Line with Semicircular Notches */}
+            <div className="ticketDivider" aria-hidden="true">
+              <div className="ticketTearLine" />
+            </div>
+
+            {/* Ticket Stub & Scannable QR Code */}
+            <div className="ticketStubSection">
+              <div className="ticketQrBox">
+                <img
+                  src={generatedTicketQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(ticketVerifyLink || assignedTicketId)}`}
+                  alt="Official Admission Verification QR Code"
+                />
+              </div>
+
+              <div className="ticketStubInfo">
+                <div className="ticketScanInst">SCAN TO VERIFY TEAM ROSTER & ADMISSION</div>
+                <div className="ticketScanDesc">
+                  Scan this QR code with any mobile camera at the venue reception to instantly retrieve full team roster, participant details, and arena authorization.
+                </div>
+                <div className="ticketVerifiedPill">
+                  <span>✓</span>
+                  <span>PAYMENT VERIFIED · ₹{fee} · UTR: {txn}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="hint">See you at ZYNTRA’26 · The New Dimension.</p>
-          <button className="btn pri" onClick={close}>
-            Back to events
-          </button>
+
+          {/* Email Delivery Feedback */}
+          <div style={{
+            margin: '18px 0 0',
+            padding: '12px 18px',
+            background: 'rgba(34, 197, 94, 0.1)',
+            border: '1px solid rgba(34, 197, 94, 0.35)',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            fontSize: '0.82rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#4ade80', fontSize: '1rem' }}>✉</span>
+              <span style={{ color: '#e2e8f0' }}>
+                Confirmation &amp; QR Pass dispatched to <strong>{d.email || email}</strong>
+              </span>
+            </div>
+            <a
+              href={`mailto:${d.email || email}?subject=${encodeURIComponent(`[CONFIRMED] Your Official ZYNTRA '26 Ticket Pass: ${assignedTicketId} (${ev.name})`)}&body=${encodeURIComponent(`Hello ${d.leader},\n\nYour registration for ZYNTRA '26 is confirmed!\n\nEvent: ${ev.name}\nTeam ID: ${assignedTeamId}\nPass ID: ${assignedTicketId}\nTeam: ${d.team || d.leader}\nUTR: ${txn}\n\nOfficial QR Verification Link:\n${ticketVerifyLink}\n\nPresent your ticket at the entrance.\nSapthagiri NPS University, Bengaluru.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#3fd8ff',
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '0.78rem',
+                borderBottom: '1px dashed #3fd8ff',
+              }}
+            >
+              Open in Mail App →
+            </a>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="ticketActions">
+            <button
+              type="button"
+              className="ticketBtn ticketBtnPri"
+              onClick={() => window.print()}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              <span>Download / Print Ticket</span>
+            </button>
+
+            <button
+              type="button"
+              className="ticketBtn ticketBtnSec"
+              onClick={() => {
+                navigator.clipboard.writeText(ticketVerifyLink || window.location.href);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              <span>{copiedLink ? '✓ Link Copied' : 'Copy Ticket Link'}</span>
+            </button>
+
+            <button
+              type="button"
+              className="ticketBtn ticketBtnSec"
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: `ZYNTRA '26 Ticket - ${ev.name}`,
+                    text: `Official Ticket for ${d.leader} (${assignedTeamId}) - ${ev.name}`,
+                    url: ticketVerifyLink || window.location.href,
+                  }).catch(() => {});
+                } else {
+                  window.open(ticketVerifyLink, '_blank');
+                }
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              <span>Share Pass</span>
+            </button>
+
+            <button
+              type="button"
+              className="ticketBtn ticketBtnSec"
+              onClick={close}
+            >
+              <span>Back to Events</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

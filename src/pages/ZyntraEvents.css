@@ -205,3 +205,412 @@ header{background:linear-gradient(to bottom,rgba(2,5,15,.8),transparent)!importa
 @keyframes draw{to{stroke-dashoffset:0}}
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   AUTHENTIC CYBER FESTIVAL ADMISSION PASS & TICKET STYLING
+   ========================================================================== */
+.cyberTicketWrapper {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  position: relative;
+  text-align: left;
+}
+
+.ticketSuccessGlow {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.ticketSuccessGlow .tick {
+  margin: 0 auto 12px;
+}
+
+.ticketSuccessGlow h3 {
+  font-size: clamp(1.4rem, 2.5vw, 1.8rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 4px 0 6px;
+  color: #fff;
+}
+
+.cyberTicketCard {
+  position: relative;
+  background: linear-gradient(135deg, rgba(8, 22, 54, 0.98), rgba(2, 6, 20, 0.99));
+  border: 1.5px solid rgba(63, 216, 255, 0.45);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 45px rgba(63, 216, 255, 0.2);
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+
+.cyberTicketCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(63, 216, 255, 0.15), transparent 50%),
+              radial-gradient(circle at 0% 100%, rgba(245, 158, 11, 0.1), transparent 50%);
+  pointer-events: none;
+}
+
+.ticketTopBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  background: linear-gradient(90deg, rgba(27, 95, 224, 0.4), rgba(39, 184, 240, 0.25));
+  border-bottom: 1px solid rgba(63, 216, 255, 0.3);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ticketBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ticketUniCrest {
+  width: 22px;
+  height: 22px;
+  color: #dfb15b;
+}
+
+.ticketBrandText {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.ticketBrandText span {
+  color: #dfb15b;
+}
+
+.ticketSecurityBadge {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #4ade80;
+}
+
+.ticketMainBody {
+  padding: 24px;
+}
+
+.ticketArenaBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #8fe6ff;
+  margin-bottom: 4px;
+}
+
+.ticketArenaTitle {
+  font-size: clamp(1.3rem, 2.4vw, 1.75rem);
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+}
+
+.ticketIdRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.ticketTeamIdPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  color: #fde68a;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.ticketPassIdPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(63, 216, 255, 0.12);
+  border: 1px solid rgba(63, 216, 255, 0.4);
+  color: #3fd8ff;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.ticketMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  background: rgba(2, 9, 28, 0.65);
+  border: 1px solid rgba(63, 216, 255, 0.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.ticketMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticketMetaLabel {
+  font-size: 0.63rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(228, 244, 255, 0.55);
+}
+
+.ticketMetaVal {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticketRosterBox {
+  background: rgba(2, 9, 28, 0.65);
+  border: 1px solid rgba(63, 216, 255, 0.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.ticketRosterHead {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #3fd8ff;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.ticketRosterList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ticketRosterItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: rgba(228, 244, 255, 0.85);
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ticketRosterItem:last-child {
+  border-bottom: none;
+}
+
+/* Perforated ticket tear line with circular notches */
+.ticketDivider {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.ticketDivider::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  width: 32px;
+  height: 32px;
+  background: #020716;
+  border-radius: 50%;
+  border-right: 1.5px solid rgba(63, 216, 255, 0.45);
+  box-shadow: inset -5px 0 10px rgba(0, 0, 0, 0.7);
+}
+
+.ticketDivider::after {
+  content: '';
+  position: absolute;
+  right: -16px;
+  width: 32px;
+  height: 32px;
+  background: #020716;
+  border-radius: 50%;
+  border-left: 1.5px solid rgba(63, 216, 255, 0.45);
+  box-shadow: inset 5px 0 10px rgba(0, 0, 0, 0.7);
+}
+
+.ticketTearLine {
+  width: calc(100% - 48px);
+  height: 0;
+  border-top: 2px dashed rgba(63, 216, 255, 0.4);
+}
+
+.ticketStubSection {
+  padding: 20px 24px 24px;
+  background: rgba(1, 5, 18, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ticketQrBox {
+  background: #fff;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 18px rgba(63, 216, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ticketQrBox img {
+  width: 130px;
+  height: 130px;
+  display: block;
+}
+
+.ticketStubInfo {
+  flex: 1;
+  min-width: 220px;
+}
+
+.ticketScanInst {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.ticketScanDesc {
+  font-size: 0.7rem;
+  color: rgba(228, 244, 255, 0.65);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.ticketVerifiedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.ticketActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.ticketBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.24s var(--ease);
+  outline: none;
+}
+
+.ticketBtnPri {
+  background: linear-gradient(135deg, #1b5fe0, #27b8f0);
+  border: 1px solid rgba(160, 235, 255, 0.85);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(63, 216, 255, 0.4);
+}
+
+.ticketBtnPri:hover {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  box-shadow: 0 0 26px rgba(63, 216, 255, 0.6);
+}
+
+.ticketBtnSec {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(63, 216, 255, 0.3);
+  color: #8fe6ff;
+}
+
+.ticketBtnSec:hover {
+  background: rgba(63, 216, 255, 0.15);
+  border-color: #3fd8ff;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .cyberTicketCard, .cyberTicketCard * {
+    visibility: visible;
+  }
+  .cyberTicketWrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .cyberTicketCard {
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .ticketTopBanner, .ticketStubSection, .ticketMetaGrid, .ticketRosterBox {
+    background: #f8f9fa !important;
+    color: #000 !important;
+  }
+  .ticketArenaTitle, .ticketBrandText, .ticketMetaVal {
+    color: #000 !important;
+  }
+  .ticketActions, .ticketSuccessGlow {
+    display: none !important;
+  }
+}
+
