@@ -148,7 +148,7 @@ export default function TicketVerificationPage({ onNavigateHome }) {
       background: 'radial-gradient(ellipse at 50% 0%, #071536 0%, #020716 70%, #00030a 100%)',
       color: '#fff',
       fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",
-      padding: '24px 16px 60px',
+      padding: 'clamp(16px, 3.5vw, 24px) clamp(10px, 2.5vw, 16px) 60px',
       position: 'relative',
     }}>
       {/* Top Header */}
@@ -245,7 +245,7 @@ export default function TicketVerificationPage({ onNavigateHome }) {
                 ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(16, 185, 129, 0.15))'
                 : 'linear-gradient(135deg, rgba(63, 216, 255, 0.2), rgba(39, 184, 240, 0.1))',
               borderBottom: '1px solid rgba(63, 216, 255, 0.3)',
-              padding: '18px 24px',
+              padding: 'clamp(14px, 3vw, 18px) clamp(14px, 3vw, 24px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -305,12 +305,12 @@ export default function TicketVerificationPage({ onNavigateHome }) {
             </div>
 
             {/* Event & Pass Metadata Grid */}
-            <div style={{ padding: '24px' }}>
+            <div style={{ padding: 'clamp(14px, 3.5vw, 24px)' }}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                gap: '16px',
-                marginBottom: '24px',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+                gap: '14px',
+                marginBottom: '20px',
               }}>
                 {/* Event Arena Box */}
                 <div style={{

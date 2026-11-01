@@ -2380,37 +2380,7 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
           <button className="mini" onClick={() => go(null)}>
             Events
           </button>
-          <button
-            className="mini"
-            onClick={
-              onOpenAdmin
-                ? onOpenAdmin
-                : () => {
-                  window.location.hash = '#admin';
-                }
-            }
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'rgba(63, 216, 255, 0.1)',
-              padding: '6px 12px',
-              borderRadius: 99,
-              border: '1px solid rgba(63, 216, 255, 0.3)',
-            }}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#3fd8ff"
-              strokeWidth="2.5"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Admin
-          </button>
+
         </div>
       </header>
 

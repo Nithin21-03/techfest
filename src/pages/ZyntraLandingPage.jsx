@@ -361,10 +361,10 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
         if (heroRef.current) {
           heroRef.current.style.transform = `translate3d(${mx * 7}px, ${-ph * vh * 0.55 + my * 4}px, 0)`;
-          heroRef.current.style.opacity = String(1 - smoothstep(0.05, 0.38, ph));
+          heroRef.current.style.opacity = String(1 - smoothstep(0.18, 0.65, ph));
         }
         if (cueRef.current) {
-          cueRef.current.style.opacity = String(1 - smoothstep(0, 0.08, ph));
+          cueRef.current.style.opacity = String(1 - smoothstep(0, 0.15, ph));
         }
       }
 
@@ -383,7 +383,8 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           const pk = smoothstep(0.06, 0.38, pe);
           const pOut = 1 - smoothstep(0.92, 1.0, pe);
           hdWrapRef.current.style.opacity = (pk * pOut).toFixed(3);
-          hdWrapRef.current.style.transform = `translate3d(${((1 - pk) * (vw <= 860 ? vw * 0.4 : vw * 0.25)).toFixed(1)}px, ${((0.5 - pe) * vh * 0.1).toFixed(1)}px, 0) scale(${(0.9 + 0.1 * pk).toFixed(3)})`;
+          const xOff = vw <= 860 ? 0 : ((1 - pk) * vw * 0.25).toFixed(1);
+          hdWrapRef.current.style.transform = `translate3d(${xOff}px, ${((0.5 - pe) * vh * 0.1).toFixed(1)}px, 0) scale(${(0.9 + 0.1 * pk).toFixed(3)})`;
         }
         if (hdTiltRef.current) {
           hdTiltRef.current.style.transform = `perspective(1000px) rotateY(${mx * 9}deg) rotateX(${-my * 7}deg)`;
@@ -790,36 +791,22 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
         <div className="authGroup">
           {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'rgba(63, 216, 255, 0.12)',
-                  border: '1px solid rgba(63, 216, 255, 0.35)',
-                  borderRadius: '99px',
-                  padding: '5px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: '#8fe6ff',
-                }}
-              >
+            <div className="userSessionGroup">
+              <div className="userSessionBadge" title={currentUser.name || currentUser.email}>
                 {currentUser.picture ? (
                   <img
                     src={currentUser.picture}
                     alt=""
-                    style={{ width: '18px', height: '18px', borderRadius: '50%' }}
+                    style={{ width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0 }}
                   />
                 ) : (
-                  <span style={{ fontSize: '0.85rem' }}>👤</span>
+                  <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>👤</span>
                 )}
-                <span>{currentUser.name || currentUser.email.split('@')[0]}</span>
+                <span className="userName">{currentUser.name || currentUser.email.split('@')[0]}</span>
               </div>
               <button
                 type="button"
-                className="btnAuth btnAuthLogin"
-                style={{ padding: '6px 14px', fontSize: '0.75rem', minWidth: 'auto' }}
+                className="btnAuth btnAuthLogin btnLogout"
                 onClick={() => {
                   try { localStorage.removeItem('zyntra_session'); } catch (_) {}
                   setCurrentUser(null);
