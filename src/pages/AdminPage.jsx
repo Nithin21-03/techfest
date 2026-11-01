@@ -79,29 +79,20 @@ export default function AdminPage({ onNavigateHome }) {
           body: JSON.stringify({ password: password.trim() }),
         });
 
-        if (res.ok) {
-          const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
           soundFX.playSuccess();
           setToken(data.token);
           localStorage.setItem('zyntra_admin_token', data.token);
           setPassword('');
           return;
         }
+        setAuthError(data.error || 'Invalid security passcode. Access denied.');
+        soundFX.playHover();
       } catch (networkErr) {
-        // Backend server offline, fall back to client verification
+        setAuthError('Unable to connect to authentication server. Please check your network.');
+        soundFX.playHover();
       }
-
-      // Default admin key fallback
-      if (password.trim() === 'zyntra2026') {
-        soundFX.playSuccess();
-        setToken('zyntra2026');
-        localStorage.setItem('zyntra_admin_token', 'zyntra2026');
-        setPassword('');
-        return;
-      }
-
-      setAuthError('Invalid security passcode. Access denied.');
-      soundFX.playHover();
     } finally {
       setIsLoggingIn(false);
     }
@@ -156,6 +147,9 @@ export default function AdminPage({ onNavigateHome }) {
 
     const normalizeRecord = (item) => {
       const ticket_id = item.ticket_id || item.ticketId || item.id || 'N/A';
+      const team_id = item.team_id || item.teamId || 'N/A';
+      const check_in_status = item.check_in_status || item.checkInStatus || 'PENDING';
+      const screenshot = item.screenshot || '';
       const full_name = item.full_name || item.leaderName || item.fullName || '';
       const email = item.email || item.leaderEmail || '';
       const phone = item.phone || item.leaderPhone || '';
@@ -182,6 +176,9 @@ export default function AdminPage({ onNavigateHome }) {
       return {
         ...item,
         ticket_id,
+        team_id,
+        check_in_status,
+        screenshot,
         full_name,
         email,
         phone,
@@ -304,6 +301,7 @@ export default function AdminPage({ onNavigateHome }) {
 
     const headers = [
       'Ticket ID',
+      'Team ID',
       'Leader Name',
       'SRN / USN',
       'Email',
@@ -323,6 +321,7 @@ export default function AdminPage({ onNavigateHome }) {
 
     const rows = filteredRegistrations.map((r) => [
       `"${r.ticket_id || ''}"`,
+      `"${r.team_id || ''}"`,
       `"${(r.full_name || '').replace(/"/g, '""')}"`,
       `"${(r.student_id || '').replace(/"/g, '""')}"`,
       `"${(r.email || '').replace(/"/g, '""')}"`,
@@ -442,8 +441,8 @@ export default function AdminPage({ onNavigateHome }) {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <p className="mt-2 text-[10px] font-mono text-white/40 italic">
-                  Default Passcode: <strong className="text-cyan-400 font-bold">zyntra2026</strong>
+                <p className="mt-2 text-[11px] font-mono text-white/40">
+                  Protected portal. Authorized coordinator credentials required.
                 </p>
               </div>
 

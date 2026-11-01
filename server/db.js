@@ -138,6 +138,7 @@ export async function initializeDatabase() {
         CREATE TABLE IF NOT EXISTS registrations (
           id SERIAL PRIMARY KEY,
           ticket_id VARCHAR(50) UNIQUE NOT NULL,
+          team_id VARCHAR(60),
           full_name VARCHAR(150) NOT NULL,
           college VARCHAR(250) NOT NULL,
           email VARCHAR(150) NOT NULL,
@@ -160,6 +161,9 @@ export async function initializeDatabase() {
           transaction_ref VARCHAR(100),
           payment_date VARCHAR(50),
           amount_paid VARCHAR(50),
+          screenshot TEXT,
+          check_in_status VARCHAR(50) DEFAULT 'PENDING',
+          check_in_time TIMESTAMP WITH TIME ZONE,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           status VARCHAR(50) DEFAULT 'CONFIRMED',
           CONSTRAINT unique_email_event UNIQUE (email, event_id)
@@ -181,6 +185,10 @@ export async function initializeDatabase() {
         'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS transaction_ref VARCHAR(100);',
         'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS payment_date VARCHAR(50);',
         'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS amount_paid VARCHAR(50);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS team_id VARCHAR(60);',
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS screenshot TEXT;',
+        "ALTER TABLE registrations ADD COLUMN IF NOT EXISTS check_in_status VARCHAR(50) DEFAULT 'PENDING';",
+        'ALTER TABLE registrations ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP WITH TIME ZONE;',
       ];
 
       for (const query of alterQueries) {
@@ -194,6 +202,8 @@ export async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations(event_id);
         CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(email);
         CREATE INDEX IF NOT EXISTS idx_registrations_ticket_id ON registrations(ticket_id);
+        CREATE INDEX IF NOT EXISTS idx_registrations_team_id ON registrations(team_id);
+        CREATE INDEX IF NOT EXISTS idx_registrations_check_in ON registrations(check_in_status);
         CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at DESC);
       `);
 
@@ -238,6 +248,7 @@ export async function initializeDatabase() {
 export async function registerParticipant(data) {
   const {
     ticketId,
+    teamId,
     fullName,
     college,
     email,
@@ -260,6 +271,8 @@ export async function registerParticipant(data) {
     transactionRef,
     paymentDate,
     amountPaid,
+    screenshot,
+    checkInStatus,
   } = data;
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -278,22 +291,25 @@ export async function registerParticipant(data) {
     try {
       const query = `
         INSERT INTO registrations (
-          ticket_id, full_name, college, email, phone, student_id,
+          ticket_id, team_id, full_name, college, email, phone, student_id,
           department, semester, event_id, event_name, team_name,
           team_members, members_detail, project_title, project_category,
           technologies, project_abstract, mentor_name, project_link,
-          payment_mode, transaction_ref, payment_date, amount_paid, status
+          payment_mode, transaction_ref, payment_date, amount_paid,
+          screenshot, check_in_status, status
         ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, $11,
-          $12, $13, $14, $15,
-          $16, $17, $18, $19,
-          $20, $21, $22, $23, $24
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, $12,
+          $13, $14, $15, $16,
+          $17, $18, $19, $20,
+          $21, $22, $23, $24,
+          $25, $26, $27
         ) RETURNING *;
       `;
 
       const values = [
         ticketId,
+        teamId || null,
         fullName,
         college,
         normalizedEmail,
@@ -316,6 +332,8 @@ export async function registerParticipant(data) {
         transactionRef || 'DEMO-UTR',
         paymentDate || new Date().toISOString().split('T')[0],
         amountPaid || '₹ 500',
+        screenshot || '',
+        checkInStatus || 'PENDING',
         'CONFIRMED',
       ];
 
@@ -340,6 +358,7 @@ export async function registerParticipant(data) {
     const newRecord = {
       id: memoryRegistrations.length + 1,
       ticket_id: ticketId,
+      team_id: teamId || null,
       full_name: fullName,
       college,
       email: normalizedEmail,
@@ -362,6 +381,9 @@ export async function registerParticipant(data) {
       transaction_ref: transactionRef || '',
       payment_date: paymentDate || new Date().toISOString().split('T')[0],
       amount_paid: amountPaid || '₹ 500',
+      screenshot: screenshot || '',
+      check_in_status: checkInStatus || 'PENDING',
+      check_in_time: null,
       created_at: new Date().toISOString(),
       status: 'CONFIRMED',
     };
@@ -517,11 +539,12 @@ export async function getAllRegistrationsForAdmin() {
   if (isPostgresConnected && pool) {
     const res = await pool.query(`
       SELECT 
-        id, ticket_id, full_name, college, email, phone, student_id,
+        id, ticket_id, team_id, full_name, college, email, phone, student_id,
         department, semester, event_id, event_name, team_name,
         team_members, members_detail, project_title, project_category,
         technologies, project_abstract, mentor_name, project_link,
         payment_mode, transaction_ref, payment_date, amount_paid,
+        screenshot, check_in_status, check_in_time,
         created_at, status
       FROM registrations 
       ORDER BY created_at DESC;
@@ -555,4 +578,69 @@ export function getDatabaseStatus() {
     cachedRecords: memoryRegistrations.length,
     timestamp: new Date().toISOString(),
   };
+}
+
+
+/**
+ * Retrieve registration by Ticket ID or Team ID
+ */
+export async function getRegistrationByTicket(ticketOrTeamId) {
+  if (!ticketOrTeamId) return null;
+  const clean = String(ticketOrTeamId).trim();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  if (isPostgresConnected && pool) {
+    const res = await pool.query(
+      'SELECT * FROM registrations WHERE ticket_id = $1 OR team_id = $1 LIMIT 1;',
+      [clean]
+    );
+    return res.rows[0] || null;
+  } else {
+    return (
+      memoryRegistrations.find(
+        (r) => r.ticket_id === clean || r.team_id === clean
+      ) || null
+    );
+  }
+}
+
+/**
+ * Update venue check-in / attendance status
+ */
+export async function updateCheckInStatus(ticketOrTeamId, status = 'CHECKED_IN') {
+  if (!ticketOrTeamId) return null;
+  const clean = String(ticketOrTeamId).trim();
+  const now = new Date().toISOString();
+
+  if (!isPostgresConnected && getConnectionString()) {
+    try {
+      await initializeDatabase();
+    } catch (_) {}
+  }
+
+  if (isPostgresConnected && pool) {
+    const res = await pool.query(
+      `UPDATE registrations 
+       SET check_in_status = $1, check_in_time = $2 
+       WHERE ticket_id = $3 OR team_id = $3 
+       RETURNING *;`,
+      [status, now, clean]
+    );
+    return res.rows[0] || null;
+  } else {
+    const rec = memoryRegistrations.find(
+      (r) => r.ticket_id === clean || r.team_id === clean
+    );
+    if (rec) {
+      rec.check_in_status = status;
+      rec.check_in_time = status === 'CHECKED_IN' ? now : null;
+      writeAtomic(registrationsFile, memoryRegistrations);
+    }
+    return rec || null;
+  }
 }

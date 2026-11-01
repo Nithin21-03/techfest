@@ -19,7 +19,7 @@
    - **Step 4 — Review**: Comprehensive review cards with direct edit links and code of conduct declaration.
    - **Step 5 — Payment & Pass**: Flat ₹500 fee summary, Instant UPI QR (`zyntrasnpsu@upi`), Bank Transfer, UTR verification, and digital pass generation with QR code and print/download pass options.
 3. **Admin Command Center (`#admin`)**:
-   - Protected with passcode authentication (`zyntra2026`).
+   - Protected with passcode authentication (configured via server environment variables).
    - Real-time tabular inspection of all registered teams, leaders, member rosters, and UTR reference IDs.
    - One-click CSV spreadsheet export for offline coordination.
 

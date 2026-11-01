@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './ZyntraLanding.css';
 
-/* =====================================================================
+/*=====================================================================
    ZYNTRA_CONFIG — FEST CONFIGURATION & SCHEDULE
-   ===================================================================== */
+   =====================================================================*/
 const ZYNTRA_CONFIG = {
   eventName: "ZYNTRA'26",
   tagline: "The New Dimension",
@@ -579,7 +579,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     isGoogle: true,
                   }));
                 }
-              } catch (_) {}
+              } catch (_) { }
               setAuthModalOpen(false);
               if (authRole === 'admin') onOpenAdmin?.();
               else onOpenEvents?.();
@@ -914,7 +914,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <span>Authorized Personnel Only. Requires administrative security passkey. Default passkey: <strong>zyntra2026</strong></span>
+                  <span>Authorized Personnel Only. Requires administrative security clearance passkey.</span>
                 </div>
 
                 <div className="formGroup">
@@ -933,7 +933,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                       type={showAdminKey ? 'text' : 'password'}
                       id="adminKey"
                       className="formInput"
-                      placeholder="Enter passkey (e.g. zyntra2026)"
+                      placeholder="Enter security passkey"
                       value={adminKey}
                       onChange={(e) => setAdminKey(e.target.value)}
                       required

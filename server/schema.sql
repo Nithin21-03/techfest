@@ -13,6 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS registrations (
     id SERIAL PRIMARY KEY,
     ticket_id VARCHAR(50) UNIQUE NOT NULL,
+    team_id VARCHAR(60),
     full_name VARCHAR(150) NOT NULL,
     college VARCHAR(250) NOT NULL,
     email VARCHAR(150) NOT NULL,
@@ -35,6 +36,9 @@ CREATE TABLE IF NOT EXISTS registrations (
     transaction_ref VARCHAR(100) DEFAULT 'DEMO-UTR',
     payment_date VARCHAR(50),
     amount_paid VARCHAR(50) DEFAULT '₹ 500',
+    screenshot TEXT,
+    check_in_status VARCHAR(50) DEFAULT 'PENDING',
+    check_in_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'CONFIRMED',
 
@@ -46,6 +50,8 @@ CREATE TABLE IF NOT EXISTS registrations (
 CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations(event_id);
 CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(email);
 CREATE INDEX IF NOT EXISTS idx_registrations_ticket_id ON registrations(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_team_id ON registrations(team_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_check_in ON registrations(check_in_status);
 CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at DESC);
 
 -- -------------------------------------------------------------------------

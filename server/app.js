@@ -9,6 +9,8 @@ import {
   getAllRegistrationsForAdmin,
   submitSponsorInquiry,
   getDatabaseStatus,
+  getRegistrationByTicket,
+  updateCheckInStatus,
 } from './db.js';
 
 dotenv.config();
@@ -172,6 +174,8 @@ app.post('/api/register', registrationLimiter, async (req, res) => {
       transactionRef,
       paymentDate,
       amountPaid,
+      teamId,
+      screenshot,
       botTrap,
     } = req.body;
 
@@ -238,10 +242,16 @@ app.post('/api/register', registrationLimiter, async (req, res) => {
     // Generate unique Ticket ID
     const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
     const cleanEventCode = activeEventId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
-    const ticketId = `ZYN26-${cleanEventCode || 'PROJ'}-${randomHex}`;
+    const ticketId = req.body.ticketId && typeof req.body.ticketId === 'string'
+      ? sanitizeInput(req.body.ticketId, 50)
+      : `ZYN26-${cleanEventCode || 'PROJ'}-${randomHex}`;
+    const cleanTeamId = sanitizeInput(teamId || req.body.team_id || '', 60);
+    const cleanScreenshot = typeof screenshot === 'string' ? screenshot : '';
 
     const registrationResult = await registerParticipant({
       ticketId,
+      teamId: cleanTeamId || null,
+      screenshot: cleanScreenshot,
       fullName: cleanFullName,
       college: cleanCollege,
       email: cleanEmail,
@@ -416,6 +426,40 @@ app.post('/api/send-ticket-email', async (req, res) => {
   }
 });
 
+// TICKET LOOKUP & ATTENDANCE VERIFICATION ENDPOINTS
+app.get('/api/ticket/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const record = await getRegistrationByTicket(id);
+    if (!record) {
+      return res.status(404).json({ error: 'Ticket or Team ID not found in database.' });
+    }
+    return res.json({ success: true, ticket: record });
+  } catch (err) {
+    console.error('Ticket lookup error:', err.message);
+    return res.status(500).json({ error: 'Failed to verify ticket from database.' });
+  }
+});
+
+app.post('/api/ticket/:id/check-in', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const status = req.body.status || 'CHECKED_IN';
+    const updated = await updateCheckInStatus(id, status);
+    if (!updated) {
+      return res.status(404).json({ error: 'Ticket or Team ID not found.' });
+    }
+    return res.json({
+      success: true,
+      checkInStatus: updated.check_in_status,
+      checkInTime: updated.check_in_time,
+    });
+  } catch (err) {
+    console.error('Check-in status update error:', err.message);
+    return res.status(500).json({ error: 'Failed to update check-in status.' });
+  }
+});
+
 // SUMMARY & STATS ENDPOINT
 app.get('/api/registrations', async (req, res) => {
   try {
@@ -434,7 +478,12 @@ app.get('/api/registrations', async (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   try {
     const { password } = req.body;
-    const configuredKey = process.env.ADMIN_KEY || 'zyntra2026';
+    const configuredKey = process.env.ADMIN_KEY;
+
+    if (!configuredKey) {
+      console.warn('ADMIN_KEY environment variable is not configured.');
+      return res.status(500).json({ success: false, error: 'Admin authentication is not configured on server.' });
+    }
 
     if (!password) {
       return res.status(400).json({ success: false, error: 'Security passcode is required.' });
@@ -461,9 +510,9 @@ app.post('/api/admin/login', (req, res) => {
 app.get('/api/admin/registrations', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'] || req.query.key;
-    const configuredKey = process.env.ADMIN_KEY || 'zyntra2026';
+    const configuredKey = process.env.ADMIN_KEY;
 
-    if (!adminKey || adminKey.trim() !== configuredKey.trim()) {
+    if (!configuredKey || !adminKey || adminKey.trim() !== configuredKey.trim()) {
       return res.status(403).json({ error: 'Unauthorized. Admin credentials required.' });
     }
 

@@ -1180,7 +1180,7 @@ export function Flow({ ev, onDone, close, user }) {
     solo ||
     d.members.every((m) => m.name.trim() && mPhoneOk(m.phone) && m.roll.trim());
 
-  const defaultUpi = PAY.upi || 'zyntra2026@okhdfcbank';
+  const defaultUpi = PAY.upi || 'zyntrasnpsu@okhdfcbank';
   const upi = `upi://pay?pa=${encodeURIComponent(defaultUpi)}&pn=${encodeURIComponent(
     PAY.payee || "ZYNTRA '26"
   )}&am=${fee}&cu=INR&tn=${encodeURIComponent(ev.name)}`;

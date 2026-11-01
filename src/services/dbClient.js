@@ -35,6 +35,7 @@ export async function saveToCloudDirectly(data) {
 
   const {
     ticketId,
+    teamId,
     fullName,
     college,
     email,
@@ -57,10 +58,13 @@ export async function saveToCloudDirectly(data) {
     transactionRef,
     paymentDate,
     amountPaid,
+    screenshot,
+    checkInStatus,
   } = data;
 
   const row = {
     ticket_id: ticketId,
+    team_id: teamId || data.team_id || null,
     full_name: fullName,
     college: college || 'Sapthagiri NPS University (SNPSU)',
     email: email.toLowerCase().trim(),
@@ -83,6 +87,8 @@ export async function saveToCloudDirectly(data) {
     transaction_ref: transactionRef || 'DEMO-UTR',
     payment_date: paymentDate || new Date().toISOString().split('T')[0],
     amount_paid: amountPaid || '₹ 500',
+    screenshot: screenshot || data.screenshot || '',
+    check_in_status: checkInStatus || 'PENDING',
     status: 'CONFIRMED',
   };
 

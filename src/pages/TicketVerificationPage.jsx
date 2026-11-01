@@ -63,6 +63,43 @@ export default function TicketVerificationPage({ onNavigateHome }) {
           setCheckInTime(checkins[recordId]);
         }
       }
+
+      // Check with live server database for real-time ticket & check-in verification
+      if (id) {
+        fetch(`/api/ticket/${encodeURIComponent(id)}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((json) => {
+            if (json && json.ticket) {
+              const t = json.ticket;
+              setTicketData((prev) => ({
+                ticketId: t.ticket_id || prev?.ticketId || id,
+                teamId: t.team_id || prev?.teamId || 'N/A',
+                teamName: t.team_name || prev?.teamName,
+                leader: t.full_name || prev?.leader,
+                email: t.email || prev?.email,
+                phone: t.phone || prev?.phone,
+                college: t.college || prev?.college,
+                dept: t.department || prev?.dept,
+                roll: t.student_id || prev?.roll,
+                eventName: t.event_name || prev?.eventName,
+                fee: t.amount_paid || prev?.fee,
+                txn: t.transaction_ref || prev?.txn,
+                screenshot: t.screenshot || prev?.screenshot,
+                members: t.members_detail || t.team_members || prev?.members || [],
+                timestamp: t.created_at || prev?.timestamp,
+              }));
+
+              if (t.check_in_status === 'CHECKED_IN') {
+                setIsCheckedIn(true);
+                if (t.check_in_time) {
+                  const d = new Date(t.check_in_time);
+                  setCheckInTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                }
+              }
+            }
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       console.error('Error loading ticket verification:', err);
     }
@@ -85,6 +122,15 @@ export default function TicketVerificationPage({ onNavigateHome }) {
         delete checkins[recordId];
       }
       localStorage.setItem('zyntra_checkins', JSON.stringify(checkins));
+    } catch (_) {}
+
+    // Synchronize check-in status with server database
+    try {
+      fetch(`/api/ticket/${encodeURIComponent(recordId)}/check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextState ? 'CHECKED_IN' : 'PENDING' }),
+      }).catch(() => {});
     } catch (_) {}
   };
 
@@ -569,3 +615,4 @@ export default function TicketVerificationPage({ onNavigateHome }) {
     </div>
   );
 }
+
