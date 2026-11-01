@@ -52,6 +52,25 @@ function getInitials(name) {
   return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
 }
 
+// Secure client-side password hashing helper using Web Crypto API
+async function hashClientPassword(password, salt) {
+  try {
+    const enc = new TextEncoder();
+    const data = enc.encode(`${salt}:${password}`);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch (_) {
+    let hash = 0;
+    const str = `${salt}:${password}`;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return String(hash);
+  }
+}
+
 /* =====================================================================
    MAIN COMPONENT
    ===================================================================== */
@@ -626,12 +645,10 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               setAuthModalOpen(false);
               if (authRole === 'admin') {
                 onOpenAdmin?.();
-              } else if (authMode === 'signup') {
-                // STAY ON LANDING PAGE AFTER SIGNING UP
-                setToastNotice(`Account registered! Welcome to ZYNTRA'26, ${userSession?.name || 'Explorer'}.`);
-                setTimeout(() => setToastNotice(''), 4500);
               } else {
-                onOpenEvents?.();
+                // STRICT REQUIREMENT: AFTER SIGNING UP OR LOGGING IN, STAY ON THE LANDING PAGE!
+                setToastNotice(`Welcome to ZYNTRA'26, ${userSession?.name || 'Explorer'}!`);
+                setTimeout(() => setToastNotice(''), 4500);
               }
             }
           },
@@ -647,30 +664,30 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       } catch (err) {
         console.warn('GIS TokenClient init error:', err);
         setAuthModalOpen(false);
-        if (authRole === 'admin') onOpenAdmin?.();
-        else if (authMode === 'signup') {
-          setToastNotice("Account registered! Welcome to ZYNTRA'26.");
-          setTimeout(() => setToastNotice(''), 4500);
+        if (authRole === 'admin') {
+          onOpenAdmin?.();
         } else {
-          onOpenEvents?.();
+          setToastNotice("Welcome to ZYNTRA'26!");
+          setTimeout(() => setToastNotice(''), 4500);
         }
       }
     } else {
       // Fallback
       setAuthModalOpen(false);
-      if (authRole === 'admin') onOpenAdmin?.();
-      else if (authMode === 'signup') {
-        setToastNotice("Account registered! Welcome to ZYNTRA'26.");
-        setTimeout(() => setToastNotice(''), 4500);
+      if (authRole === 'admin') {
+        onOpenAdmin?.();
       } else {
-        onOpenEvents?.();
+        setToastNotice("Welcome to ZYNTRA'26!");
+        setTimeout(() => setToastNotice(''), 4500);
       }
     }
   };
 
-  // Handle Manual Form Submit
-  const handleFormSubmit = (e) => {
+  // Handle Manual Form Submit with Secure Credentials & Password Verification
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
+    setAuthFeedback(null);
+
     if (authRole === 'admin') {
       if (!adminKey) {
         setAuthFeedback({ type: 'error', msg: 'Please enter Administrator Access Key' });
@@ -678,17 +695,95 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       }
       setAuthModalOpen(false);
       onOpenAdmin?.();
-    } else {
-      if (!loginId || !loginPass) {
-        setAuthFeedback({ type: 'error', msg: 'Please enter your username and password' });
+      return;
+    }
+
+    // STUDENT AUTHENTICATION
+    if (!loginId || !loginPass) {
+      setAuthFeedback({ type: 'error', msg: 'Please enter your username/email and password' });
+      return;
+    }
+
+    const cleanId = loginId.trim();
+    const isEmail = cleanId.includes('@');
+    const email = isEmail ? cleanId.toLowerCase() : `${cleanId.toLowerCase()}@snpsu.edu.in`;
+    const username = isEmail ? cleanId.split('@')[0].toLowerCase() : cleanId.toLowerCase();
+    const name = cleanId.split('@')[0];
+
+    // ---------------------------------------------------------------
+    // 1. SIGN UP FLOW (CREATE ACCOUNT)
+    // ---------------------------------------------------------------
+    if (authMode === 'signup') {
+      if (loginPass.length < 6) {
+        setAuthFeedback({
+          type: 'error',
+          msg: 'Password must be at least 6 characters long.',
+        });
         return;
       }
 
-      const cleanId = loginId.trim();
-      const isEmail = cleanId.includes('@');
+      // Check local storage accounts to prevent duplicates
+      let localUsers = [];
+      try {
+        localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
+      } catch (_) {}
+
+      const existingLocal = localUsers.find(
+        (u) =>
+          (u.username && u.username.toLowerCase() === username) ||
+          (u.email && u.email.toLowerCase() === email)
+      );
+      if (existingLocal) {
+        setAuthFeedback({
+          type: 'error',
+          msg: 'An account with this username or email already exists. Please switch to Sign In.',
+        });
+        return;
+      }
+
+      // Try registering via live backend API
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password: loginPass, name }),
+        });
+        const data = await res.json();
+        if (data.error === 'USER_EXISTS') {
+          setAuthFeedback({
+            type: 'error',
+            msg: data.message || 'An account with this username or email already exists. Please switch to Sign In.',
+          });
+          return;
+        } else if (!res.ok) {
+          setAuthFeedback({
+            type: 'error',
+            msg: data.message || data.error || 'Failed to create account.',
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('API registration fetch notice:', err.message);
+      }
+
+      // Record in local cache for offline/instant verification
+      try {
+        const salt = Math.random().toString(36).substring(2, 10);
+        const passwordHash = await hashClientPassword(loginPass, salt);
+        localUsers.push({
+          username,
+          email,
+          name,
+          salt,
+          passwordHash,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem('zyntra_users', JSON.stringify(localUsers));
+      } catch (_) {}
+
       const userSession = {
-        email: isEmail ? cleanId.toLowerCase() : `${cleanId.toLowerCase()}@snpsu.edu.in`,
-        name: cleanId.split('@')[0],
+        email,
+        name,
         isGoogle: false,
       };
 
@@ -701,14 +796,147 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       setLoginId('');
       setLoginPass('');
 
-      if (authMode === 'signup') {
-        // STRICT REQUIREMENT: AFTER SIGNING UP, STAY ON THE LANDING PAGE!
-        setToastNotice(`Account created successfully! Welcome to ZYNTRA'26, ${userSession.name}.`);
-        setTimeout(() => setToastNotice(''), 4500);
-      } else {
-        // If login, proceed to events portal
-        onOpenEvents?.();
+      // STRICT REQUIREMENT: AFTER SIGNING UP, STAY ON THE LANDING PAGE!
+      setToastNotice(`Account registered successfully! Welcome to ZYNTRA'26, ${userSession.name}.`);
+      setTimeout(() => setToastNotice(''), 4500);
+      return;
+    }
+
+    // ---------------------------------------------------------------
+    // 2. SIGN IN / LOGIN FLOW (VERIFY CREDENTIALS & PASSWORD)
+    // ---------------------------------------------------------------
+    if (authMode === 'login') {
+      let loggedInUser = null;
+      let apiAttempted = false;
+
+      // First attempt authentication via live backend API
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: cleanId, password: loginPass }),
+        });
+        const data = await res.json();
+        apiAttempted = true;
+
+        if (res.ok && data.success && data.user) {
+          loggedInUser = data.user;
+        } else if (data.error === 'INVALID_PASSWORD') {
+          // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
+          setAuthFeedback({
+            type: 'error',
+            msg: 'Incorrect password. Please verify your password and try again.',
+          });
+          return;
+        } else if (data.error === 'USER_NOT_FOUND') {
+          // If not in API DB, check if user exists in localStorage before rejecting
+          let localUsers = [];
+          try {
+            localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
+          } catch (_) {}
+          const userRec = localUsers.find(
+            (u) =>
+              (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
+              (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+          );
+          if (userRec) {
+            // Verify password against stored local hash
+            const hash = await hashClientPassword(loginPass, userRec.salt);
+            if (hash !== userRec.passwordHash) {
+              // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
+              setAuthFeedback({
+                type: 'error',
+                msg: 'Incorrect password. Please verify your password and try again.',
+              });
+              return;
+            }
+            loggedInUser = {
+              email: userRec.email,
+              name: userRec.name || userRec.username,
+              username: userRec.username,
+            };
+          } else {
+            setAuthFeedback({
+              type: 'error',
+              msg: 'No account found with this ID or email. Please click Sign Up to register.',
+            });
+            return;
+          }
+        } else {
+          setAuthFeedback({
+            type: 'error',
+            msg: data.message || data.error || 'Authentication verification failed.',
+          });
+          return;
+        }
+      } catch (netErr) {
+        console.warn('API login notice:', netErr.message);
       }
+
+      // If backend was unreachable or offline, verify against local cache
+      if (!loggedInUser && !apiAttempted) {
+        let localUsers = [];
+        try {
+          localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
+        } catch (_) {}
+        const userRec = localUsers.find(
+          (u) =>
+            (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
+            (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+        );
+
+        if (!userRec) {
+          setAuthFeedback({
+            type: 'error',
+            msg: 'No account found with this ID or email. Please click Sign Up to register.',
+          });
+          return;
+        }
+
+        const hash = await hashClientPassword(loginPass, userRec.salt);
+        if (hash !== userRec.passwordHash) {
+          // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
+          setAuthFeedback({
+            type: 'error',
+            msg: 'Incorrect password. Please verify your password and try again.',
+          });
+          return;
+        }
+
+        loggedInUser = {
+          email: userRec.email,
+          name: userRec.name || userRec.username,
+          username: userRec.username,
+        };
+      }
+
+      if (!loggedInUser) {
+        setAuthFeedback({
+          type: 'error',
+          msg: 'Authentication failed. Please check your credentials.',
+        });
+        return;
+      }
+
+      // Login successful!
+      const userSession = {
+        email: loggedInUser.email,
+        name: loggedInUser.name || loggedInUser.username,
+        isGoogle: false,
+      };
+
+      try {
+        localStorage.setItem('zyntra_session', JSON.stringify(userSession));
+        setCurrentUser(userSession);
+      } catch (_) {}
+
+      setAuthModalOpen(false);
+      setLoginId('');
+      setLoginPass('');
+
+      // STRICT REQUIREMENT: AFTER LOGGING IN, STAY ON THE LANDING PAGE!
+      setToastNotice(`Welcome back to ZYNTRA'26, ${userSession.name}!`);
+      setTimeout(() => setToastNotice(''), 4500);
     }
   };
 

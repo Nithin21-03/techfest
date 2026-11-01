@@ -16,6 +16,8 @@ import {
   getRegistrationByTicket,
   updateCheckInStatus,
   getUserRegistrations,
+  registerUser,
+  authenticateUser,
 } from './db.js';
 
 dotenv.config();
@@ -73,6 +75,7 @@ app.use((req, res, next) => {
     req.url.startsWith('/ticket') ||
     req.url.startsWith('/send-ticket-email') ||
     req.url.startsWith('/admin') ||
+    req.url.startsWith('/auth') ||
     req.url.startsWith('/user') ||
     req.url.startsWith('/stats') ||
     req.url.startsWith('/sponsor-inquiry') ||
@@ -153,6 +156,13 @@ const adminLoginLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   maxRequests: 5,
   message: 'Administrative security lockdown: Too many passcode attempts. Access frozen for 15 minutes.',
+});
+
+// Student Authentication Rate Limiter: 25 attempts per 15 minutes
+const authLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 25,
+  message: 'Too many authentication attempts. Please wait a few minutes before trying again.',
 });
 
 // Ticket Lookup / Scan Limiter: 120 queries per 5 minutes per node
@@ -571,6 +581,46 @@ app.get('/api/registrations', async (req, res) => {
   } catch (err) {
     console.error('Summary retrieval error:', err.message);
     res.status(500).json({ error: 'Could not fetch registration summary.' });
+  }
+});
+
+// STUDENT USER REGISTRATION ENDPOINT
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    const { username, email, password, name } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ success: false, error: 'MISSING_FIELDS', message: 'Username, email and password are required.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters long.' });
+    }
+    const result = await registerUser({ username, email, password, name });
+    if (!result.success) {
+      const status = result.error === 'USER_EXISTS' ? 409 : 400;
+      return res.status(status).json(result);
+    }
+    return res.status(201).json(result);
+  } catch (err) {
+    console.error('Registration API error:', err.message);
+    return res.status(500).json({ success: false, error: 'Internal registration failure.' });
+  }
+});
+
+// STUDENT USER LOGIN / AUTHENTICATION ENDPOINT
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, error: 'MISSING_FIELDS', message: 'Username or email and password are required.' });
+    }
+    const result = await authenticateUser({ identifier, password });
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+    return res.json(result);
+  } catch (err) {
+    console.error('Login API error:', err.message);
+    return res.status(500).json({ success: false, error: 'Internal authentication failure.' });
   }
 });
 
