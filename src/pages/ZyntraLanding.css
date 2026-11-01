@@ -728,36 +728,7 @@ html.rm #events .stage{display:flex;flex-direction:column;align-items:center;jus
 @media(max-width:860px){.cwrap{margin-top:clamp(12px,2vh,24px);padding-top:clamp(16px,2.5vh,28px);min-height:auto}}
 
 
-/* Extra clean styling helpers for React Buttons in Navbar and Footer */
-.navLinkBtn {
-  background: none;
-  border: none;
-  color: var(--txt2, #94a3b8);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 6px 14px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-}
-.navLinkBtn:hover {
-  color: #fff;
-  background: rgba(63, 216, 255, 0.08);
-}
-.navLinkBtn.highlightNav {
-  color: #3fd8ff;
-  font-weight: 600;
-  background: rgba(63, 216, 255, 0.12);
-  border: 1px solid rgba(63, 216, 255, 0.35);
-  box-shadow: 0 0 12px rgba(63, 216, 255, 0.18);
-}
-.navLinkBtn.highlightNav:hover {
-  background: rgba(63, 216, 255, 0.22);
-  box-shadow: 0 0 18px rgba(63, 216, 255, 0.35);
-}
+
 
 .ftLinkBtn {
   background: none;
