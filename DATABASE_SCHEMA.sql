@@ -94,6 +94,15 @@ BEGIN
     END IF;
 END $$;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'registrations' AND policyname = 'Allow check-in updates'
+    ) THEN
+        CREATE POLICY "Allow check-in updates" ON registrations FOR UPDATE USING (true) WITH CHECK (true);
+    END IF;
+END $$;
+
 ALTER TABLE sponsor_inquiries ENABLE ROW LEVEL SECURITY;
 
 DO $$

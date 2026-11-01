@@ -7,6 +7,8 @@
     "dev": "concurrently \"node server/index.js\" \"vite\" --names \"API,WEB\" --prefix-colors \"cyan,magenta\"",
     "dev:client": "vite",
     "dev:server": "node server/index.js",
+    "start": "node server/index.js",
+    "serve": "node server/index.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import express from 'express';
 import cors from 'cors';
@@ -15,6 +18,10 @@ import {
 } from './db.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dist');
 
 const app = express();
 
@@ -56,6 +63,23 @@ app.use(
 // Payload size defense: limit JSON bodies to 64KB
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: false, limit: '15mb' }));
+
+// Serverless route normalization (ensures both /api/path and /path match)
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api') && (
+    req.url.startsWith('/register') ||
+    req.url.startsWith('/health') ||
+    req.url.startsWith('/ticket') ||
+    req.url.startsWith('/send-ticket-email') ||
+    req.url.startsWith('/admin') ||
+    req.url.startsWith('/stats') ||
+    req.url.startsWith('/sponsor-inquiry') ||
+    req.url.startsWith('/db-status')
+  )) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
 
 // Defensive middleware to capture malformed JSON payload attacks
 app.use((err, req, res, next) => {
@@ -640,6 +664,17 @@ app.post('/api/sponsor-inquiry', sponsorLimiter, async (req, res) => {
     res.status(500).json({ error: 'Could not submit sponsor inquiry.' });
   }
 });
+
+// --- 6. STATIC PRODUCTION FRONTEND SERVING ---
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // GLOBAL ERROR HANDLER
 app.use((err, req, res, next) => {

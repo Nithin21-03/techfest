@@ -122,3 +122,57 @@ export async function fetchFromCloudDirectly() {
 
   return data || [];
 }
+
+/**
+ * Direct Supabase single ticket lookup (used as fallback for ticket verification)
+ */
+export async function fetchTicketFromCloud(id) {
+  if (!supabase || !id) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('*')
+      .or(`ticket_id.eq.${id},team_id.eq.${id}`)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Direct Supabase ticket lookup warning:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('Direct Supabase lookup exception:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Direct Supabase check-in status update (used as fallback for coordinator portal)
+ */
+export async function updateCheckInInCloud(id, status = 'CHECKED_IN') {
+  if (!supabase || !id) return null;
+
+  try {
+    const updatePayload = {
+      check_in_status: status,
+      check_in_time: status === 'CHECKED_IN' ? new Date().toISOString() : null,
+    };
+
+    const { data, error } = await supabase
+      .from('registrations')
+      .update(updatePayload)
+      .or(`ticket_id.eq.${id},team_id.eq.${id}`)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Direct Supabase check-in warning:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('Direct Supabase check-in exception:', err.message);
+    return null;
+  }
+}
