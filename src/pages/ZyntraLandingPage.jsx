@@ -683,25 +683,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         <div className="authGroup">
           <button
             type="button"
-            className="btnAuth btnAuthAdmin"
-            onClick={onOpenAdmin}
-            aria-label="Admin Portal"
-            style={{
-              borderColor: 'rgba(63, 216, 255, 0.4)',
-              background: 'rgba(63, 216, 255, 0.1)',
-              color: '#3fd8ff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <span>Admin</span>
-          </button>
-          <button
-            type="button"
             className="btnAuth btnAuthLogin"
             onClick={() => openAuth('student', 'login')}
             aria-label="Login to ZYNTRA'26"
