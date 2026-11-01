@@ -51,7 +51,7 @@ h2{font-weight:700;text-transform:uppercase;letter-spacing:.14em;line-height:1.0
 .authClose:hover,.authClose:focus-visible{border-color:var(--cyan);color:#fff;background:rgba(63,216,255,.18);box-shadow:0 0 14px rgba(63,216,255,.45);transform:scale(1.06)}
 .authCard.isAdmin .authClose:hover,.authCard.isAdmin .authClose:focus-visible{border-color:#dfb15b;color:#fff;background:rgba(245,158,11,.18);box-shadow:0 0 14px rgba(245,158,11,.45)}
 .authHeader{text-align:left;margin-bottom:14px}
-.authBrandRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+.authBrandRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;padding-right:48px;flex-wrap:wrap}
 .authUniBadge{font-size:.63rem;font-weight:700;letter-spacing:.22em;color:#fff;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
 .uniGoldAccent{color:#dfb15b;font-weight:800}
 .uniCrestIcon{color:#dfb15b;width:15px;height:15px;flex-shrink:0}
