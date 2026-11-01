@@ -1210,6 +1210,7 @@ export function Flow({ ev, onDone, close, user }) {
 
   /* Final Payment and Database Persistence Hook */
   const handleConfirmRegistration = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const genTicket =
       'ZY-' +

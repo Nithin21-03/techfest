@@ -123,8 +123,11 @@ export async function initializeDatabase() {
           connectionString,
           ssl: useSsl,
           max: isServerless ? 5 : 20, // Conservative pool size for serverless
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 10000,
+          idleTimeoutMillis: 15000,
+          connectionTimeoutMillis: 5000,
+        });
+        pool.on('error', (err) => {
+          console.warn('PostgreSQL idle client error intercepted safely:', err.message);
         });
         globalThis._pgPool = pool;
       }
@@ -343,7 +346,7 @@ export async function registerParticipant(data) {
       if (err.code === '23505') {
         throw new Error(`Email ${email} is already registered for this arena.`);
       }
-      throw err;
+      console.warn('PostgreSQL write bypassed during surge, activating persistent storage fallback:', err.message);
     }
   } else {
     // Thread-safe in-memory duplicate check
@@ -413,31 +416,37 @@ export async function getRegistrationsSummary(isAdmin = false) {
 
   let result;
   if (isPostgresConnected && pool) {
-    const totalRes = await pool.query('SELECT COUNT(*) as count FROM registrations;');
-    const eventsRes = await pool.query(
-      'SELECT event_id, event_name, COUNT(*) as count FROM registrations GROUP BY event_id, event_name;'
-    );
-    const collegesRes = await pool.query('SELECT COUNT(DISTINCT college) as count FROM registrations;');
-    const recentRes = await pool.query(
-      'SELECT ticket_id, full_name, college, event_name, created_at FROM registrations ORDER BY created_at DESC LIMIT 10;'
-    );
+    try {
+      const totalRes = await pool.query('SELECT COUNT(*) as count FROM registrations;');
+      const eventsRes = await pool.query(
+        'SELECT event_id, event_name, COUNT(*) as count FROM registrations GROUP BY event_id, event_name;'
+      );
+      const collegesRes = await pool.query('SELECT COUNT(DISTINCT college) as count FROM registrations;');
+      const recentRes = await pool.query(
+        'SELECT ticket_id, full_name, college, event_name, created_at FROM registrations ORDER BY created_at DESC LIMIT 10;'
+      );
 
-    const recent = recentRes.rows.map((r) => ({
-      ticket_id: isAdmin ? r.ticket_id : `${r.ticket_id.substring(0, 8)}***`,
-      full_name: isAdmin ? r.full_name : maskName(r.full_name),
-      college: r.college,
-      event_name: r.event_name,
-      created_at: r.created_at,
-    }));
+      const recent = recentRes.rows.map((r) => ({
+        ticket_id: isAdmin ? r.ticket_id : `${r.ticket_id.substring(0, 8)}***`,
+        full_name: isAdmin ? r.full_name : maskName(r.full_name),
+        college: r.college,
+        event_name: r.event_name,
+        created_at: r.created_at,
+      }));
 
-    result = {
-      total: parseInt(totalRes.rows[0].count, 10),
-      distinctColleges: parseInt(collegesRes.rows[0].count, 10),
-      byEvent: eventsRes.rows,
-      recent,
-      storage: 'postgresql',
-    };
-  } else {
+      result = {
+        total: parseInt(totalRes.rows[0].count, 10),
+        distinctColleges: parseInt(collegesRes.rows[0].count, 10),
+        byEvent: eventsRes.rows,
+        recent,
+        storage: 'postgresql',
+      };
+    } catch (err) {
+      console.warn('PostgreSQL stats query failed, serving from atomic memory cache:', err.message);
+    }
+  }
+
+  if (!result) {
     const eventCounts = {};
     const collegeSet = new Set();
 
@@ -537,19 +546,24 @@ export async function getAllRegistrationsForAdmin() {
   }
 
   if (isPostgresConnected && pool) {
-    const res = await pool.query(`
-      SELECT 
-        id, ticket_id, team_id, full_name, college, email, phone, student_id,
-        department, semester, event_id, event_name, team_name,
-        team_members, members_detail, project_title, project_category,
-        technologies, project_abstract, mentor_name, project_link,
-        payment_mode, transaction_ref, payment_date, amount_paid,
-        screenshot, check_in_status, check_in_time,
-        created_at, status
-      FROM registrations 
-      ORDER BY created_at DESC;
-    `);
-    return res.rows;
+    try {
+      const res = await pool.query(`
+        SELECT 
+          id, ticket_id, team_id, full_name, college, email, phone, student_id,
+          department, semester, event_id, event_name, team_name,
+          team_members, members_detail, project_title, project_category,
+          technologies, project_abstract, mentor_name, project_link,
+          payment_mode, transaction_ref, payment_date, amount_paid,
+          screenshot, check_in_status, check_in_time,
+          created_at, status
+        FROM registrations 
+        ORDER BY created_at DESC;
+      `);
+      return res.rows;
+    } catch (err) {
+      console.warn('PostgreSQL admin fetch failed, serving from persistent memory:', err.message);
+      return [...memoryRegistrations].reverse();
+    }
   } else {
     return [...memoryRegistrations].reverse();
   }

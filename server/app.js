@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import express from 'express';
 import cors from 'cors';
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   res.removeHeader('X-Powered-By');
   next();
 });
@@ -54,6 +56,14 @@ app.use(
 // Payload size defense: limit JSON bodies to 64KB
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: false, limit: '15mb' }));
+
+// Defensive middleware to capture malformed JSON payload attacks
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Malformed JSON payload rejected by security filter.', status: 'INVALID_REQUEST' });
+  }
+  next(err);
+});
 
 // --- 3. HIGH-TRAFFIC IN-MEMORY RATE LIMITER ---
 const rateLimitBuckets = new Map();
@@ -112,17 +122,59 @@ const sponsorLimiter = createRateLimiter({
   message: 'Sponsor portal throttled. Too many inquiries submitted from this connection.',
 });
 
+// Admin Authentication Brute-Force Limiter: 5 attempts per 15 minutes
+const adminLoginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  message: 'Administrative security lockdown: Too many passcode attempts. Access frozen for 15 minutes.',
+});
+
+// Ticket Lookup / Scan Limiter: 120 queries per 5 minutes per node
+const ticketLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 120,
+  message: 'Ticket verification node throttled. Please retry momentarily.',
+});
+
+// High-Traffic Garbage Collector: Prunes expired rate buckets every 5 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateLimitBuckets.entries()) {
+    if (now - bucket.startTime > 30 * 60 * 1000) {
+      rateLimitBuckets.delete(key);
+    }
+  }
+  if (rateLimitBuckets.size > 10000) {
+    const keys = Array.from(rateLimitBuckets.keys()).slice(0, 5000);
+    for (const k of keys) rateLimitBuckets.delete(k);
+  }
+}, 5 * 60 * 1000).unref();
+
 app.use('/api/', globalLimiter);
 
-// --- 4. INPUT SANITIZATION HELPERS ---
+// --- 4. INPUT SANITIZATION & TIMING-SAFE HELPERS ---
 function sanitizeInput(str, maxLen = 200) {
   if (typeof str !== 'string') return '';
   return str
     .trim()
     .slice(0, maxLen)
-    .replace(/[<>]/g, '') // Strip potential HTML tags
+    .replace(/\0/g, '') // Strip null bytes
+    .replace(/<[^>]*>?/gm, '') // Strip all HTML tags
     .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '');
+    .replace(/vbscript:/gi, '')
+    .replace(/data:text\/html/gi, '')
+    .replace(/on\w+\s*=/gi, '');
+}
+
+/**
+ * Constant-time string comparison to prevent side-channel timing analysis attacks
+ */
+function timingSafeCompare(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string') return false;
+  if (!provided || !expected) return false;
+  const hashA = crypto.createHash('sha256').update(provided.trim()).digest();
+  const hashB = crypto.createHash('sha256').update(expected.trim()).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
 }
 
 // --- 5. API ENDPOINTS ---
@@ -427,9 +479,10 @@ app.post('/api/send-ticket-email', async (req, res) => {
 });
 
 // TICKET LOOKUP & ATTENDANCE VERIFICATION ENDPOINTS
-app.get('/api/ticket/:id', async (req, res) => {
+app.get('/api/ticket/:id', ticketLimiter, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = sanitizeInput(req.params.id, 60);
+    if (!id) return res.status(400).json({ error: 'Valid Ticket or Team ID is required.' });
     const record = await getRegistrationByTicket(id);
     if (!record) {
       return res.status(404).json({ error: 'Ticket or Team ID not found in database.' });
@@ -441,11 +494,12 @@ app.get('/api/ticket/:id', async (req, res) => {
   }
 });
 
-app.post('/api/ticket/:id/check-in', async (req, res) => {
+app.post('/api/ticket/:id/check-in', ticketLimiter, async (req, res) => {
   try {
-    const { id } = req.params;
-    const status = req.body.status || 'CHECKED_IN';
-    const updated = await updateCheckInStatus(id, status);
+    const id = sanitizeInput(req.params.id, 60);
+    if (!id) return res.status(400).json({ error: 'Valid Ticket or Team ID is required.' });
+    const requestedStatus = req.body?.status === 'PENDING' ? 'PENDING' : 'CHECKED_IN';
+    const updated = await updateCheckInStatus(id, requestedStatus);
     if (!updated) {
       return res.status(404).json({ error: 'Ticket or Team ID not found.' });
     }
@@ -475,7 +529,7 @@ app.get('/api/registrations', async (req, res) => {
 });
 
 // ADMIN AUTHENTICATION GATEWAY
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   try {
     const { password } = req.body;
     const configuredKey = process.env.ADMIN_KEY;
@@ -489,7 +543,7 @@ app.post('/api/admin/login', (req, res) => {
       return res.status(400).json({ success: false, error: 'Security passcode is required.' });
     }
 
-    if (password.trim() === configuredKey.trim()) {
+    if (timingSafeCompare(password, configuredKey)) {
       return res.json({
         success: true,
         token: configuredKey,
@@ -502,7 +556,7 @@ app.post('/api/admin/login', (req, res) => {
       error: 'Invalid security passcode. Access denied.',
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Authentication internal error.' });
+    res.status(500).json({ success: false, error: 'Authentication verification failure.' });
   }
 });
 
@@ -512,7 +566,7 @@ app.get('/api/admin/registrations', async (req, res) => {
     const adminKey = req.headers['x-admin-key'] || req.query.key;
     const configuredKey = process.env.ADMIN_KEY;
 
-    if (!configuredKey || !adminKey || adminKey.trim() !== configuredKey.trim()) {
+    if (!configuredKey || !adminKey || !timingSafeCompare(adminKey, configuredKey)) {
       return res.status(403).json({ error: 'Unauthorized. Admin credentials required.' });
     }
 
