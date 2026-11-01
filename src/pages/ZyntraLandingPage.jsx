@@ -669,70 +669,87 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
   // Handle Google OAuth login
   const handleGoogleLogin = () => {
+    setAuthFeedback(null);
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (clientId && window.google?.accounts?.oauth2) {
-      try {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: 'openid email profile',
-          callback: async (resp) => {
-            if (resp && resp.access_token) {
-              let userSession = null;
-              try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                  headers: { Authorization: `Bearer ${resp.access_token}` },
-                });
-                const info = await res.json();
-                if (info?.email) {
-                  userSession = {
-                    email: info.email.toLowerCase(),
-                    name: info.name || info.email.split('@')[0],
-                    picture: info.picture,
-                    isGoogle: true,
-                  };
-                  localStorage.setItem('zyntra_session', JSON.stringify(userSession));
-                  setCurrentUser(userSession);
-                }
-              } catch (_) { }
 
-              setAuthModalOpen(false);
-              if (authRole === 'admin') {
-                onOpenAdmin?.();
-              } else {
-                // STRICT REQUIREMENT: AFTER SIGNING UP OR LOGGING IN, STAY ON THE LANDING PAGE!
-                setToastNotice(`Welcome to ZYNTRA'26, ${userSession?.name || 'Explorer'}!`);
-                setTimeout(() => setToastNotice(''), 4500);
+    if (!clientId) {
+      setAuthFeedback({
+        type: 'error',
+        msg: 'VITE_GOOGLE_CLIENT_ID is not configured. Please add it to your .env file or Vercel Environment Variables.'
+      });
+      return;
+    }
+
+    if (!window.google?.accounts?.oauth2) {
+      setAuthFeedback({
+        type: 'error',
+        msg: 'Google Identity Service is loading or blocked by an ad-blocker. Please wait a few seconds and try again, or sign in with email.'
+      });
+      return;
+    }
+
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'openid email profile',
+        callback: async (resp) => {
+          if (resp && resp.access_token) {
+            let userSession = null;
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${resp.access_token}` },
+              });
+              const info = await res.json();
+              if (info?.email) {
+                userSession = {
+                  email: info.email.toLowerCase(),
+                  name: info.name || info.email.split('@')[0],
+                  picture: info.picture,
+                  isGoogle: true,
+                };
+                localStorage.setItem('zyntra_session', JSON.stringify(userSession));
+                setCurrentUser(userSession);
+
+                // Background sync to backend PostgreSQL / memory
+                try {
+                  fetch('/api/auth/google-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userSession),
+                  }).catch(() => {});
+                } catch (_) {}
               }
+            } catch (userErr) {
+              console.warn('Google userinfo fetch notice:', userErr);
             }
-          },
-          error_callback: (err) => {
-            console.warn('Google Sign-In error:', err);
-            setAuthFeedback({
-              type: 'error',
-              msg: 'Google OAuth origin mismatch: Please add https://zyntra26.vercel.app to Authorized JavaScript Origins in Google Cloud Console, or enter your email below to continue.'
-            });
+
+            setAuthModalOpen(false);
+            if (authRole === 'admin') {
+              onOpenAdmin?.();
+            } else {
+              // STRICT REQUIREMENT: AFTER SIGNING UP OR LOGGING IN, STAY ON THE LANDING PAGE!
+              setToastNotice(`Welcome to ZYNTRA'26, ${userSession?.name || 'Explorer'}!`);
+              setTimeout(() => setToastNotice(''), 4500);
+            }
           }
-        });
-        client.requestAccessToken({ prompt: 'select_account' });
-      } catch (err) {
-        console.warn('GIS TokenClient init error:', err);
-        setAuthModalOpen(false);
-        if (authRole === 'admin') {
-          onOpenAdmin?.();
-        } else {
-          setToastNotice("Welcome to ZYNTRA'26!");
-          setTimeout(() => setToastNotice(''), 4500);
+        },
+        error_callback: (err) => {
+          console.warn('Google Sign-In error callback:', err);
+          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'your current domain';
+          setAuthFeedback({
+            type: 'error',
+            msg: `Google OAuth origin mismatch (${err?.type || 'blocked'}). Please add "${currentOrigin}" to "Authorized JavaScript origins" in Google Cloud Console.`
+          });
         }
-      }
-    } else {
-      // Fallback
-      setAuthModalOpen(false);
-      if (authRole === 'admin') {
-        onOpenAdmin?.();
-      } else {
-        setToastNotice("Welcome to ZYNTRA'26!");
-        setTimeout(() => setToastNotice(''), 4500);
-      }
+      });
+      client.requestAccessToken({ prompt: 'select_account' });
+    } catch (err) {
+      console.warn('GIS TokenClient initialization error:', err);
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'your domain';
+      setAuthFeedback({
+        type: 'error',
+        msg: `Google Sign-In initialization failed (${err?.message || 'unknown'}). Please verify "${currentOrigin}" is in Authorized JavaScript Origins.`
+      });
     }
   };
 

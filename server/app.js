@@ -18,6 +18,7 @@ import {
   getUserRegistrations,
   registerUser,
   authenticateUser,
+  syncGoogleUser,
 } from './db.js';
 
 dotenv.config();
@@ -621,6 +622,20 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   } catch (err) {
     console.error('Login API error:', err.message);
     return res.status(500).json({ success: false, error: 'Internal authentication failure.' });
+  }
+});
+
+app.post('/api/auth/google-sync', authLimiter, async (req, res) => {
+  try {
+    const { email, name, picture } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'MISSING_EMAIL', message: 'Email is required.' });
+    }
+    const result = await syncGoogleUser({ email, name, picture });
+    return res.json(result);
+  } catch (err) {
+    console.error('Google sync API error:', err.message);
+    return res.status(500).json({ success: false, error: 'Failed to synchronize Google user.' });
   }
 });
 
