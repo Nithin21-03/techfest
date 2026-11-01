@@ -26,15 +26,15 @@ const ZYNTRA_CONFIG = {
     { name: "Nithin D", role: "Fest President", phone: "+91 91234 56789" }
   ],
   faculty: [
-    { name: "Dr.P Kavitha", role: "Department Advisor", photo: "", link: "" },
-    { name: "Dr.Ragavendra Rao", role: "Organizing Committee", photo: "", link: "" },
-    { name: "Veena", role: "Review Committee", photo: "", link: "" }
+    { name: "Dr.P Kavitha", role: "Department Advisor", linkedin: "https://www.linkedin.com" },
+    { name: "Dr.Ragavendra Rao", role: "Organizing Committee", linkedin: "https://www.linkedin.com" },
+    { name: "Veena", role: "Review Committee", linkedin: "https://www.linkedin.com" }
   ],
   students: [
-    { name: "Nithin D", role: "Technical Head", photo: "", link: "" },
-    { name: "Student Lead TBA", role: "Operations Lead", photo: "", link: "" },
-    { name: "Student Lead TBA", role: "Creative & Media", photo: "", link: "" },
-    { name: "Student Lead TBA", role: "Sponsorship & PR", photo: "", link: "" }
+    { name: "Nithin D", role: "Technical Head", linkedin: "https://www.linkedin.com" },
+    { name: "Student Lead TBA", role: "Operations Lead", linkedin: "https://www.linkedin.com" },
+    { name: "Student Lead TBA", role: "Creative & Media", linkedin: "https://www.linkedin.com" },
+    { name: "Student Lead TBA", role: "Sponsorship & PR", linkedin: "https://www.linkedin.com" }
   ],
   faq: [
     { q: "What is ZYNTRA'26?", a: "ZYNTRA'26 — The New Dimension — is a premier tech fest by Sapthagiri NPS University, scheduled for November 2026. Events include Technical Events, Project Presentation, Paper Presentation, Coding Debugging, and Treasure Hunt." },
@@ -1894,14 +1894,23 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="pgrid" id="facGrid">
             {ZYNTRA_CONFIG.faculty.map((p, i) => (
               <article key={i} className="pcard glass rv2 in">
-                <div className="avatar" aria-hidden="true">
-                  {p.photo ? <img src={p.photo} alt={p.name} /> : getInitials(p.name)}
-                </div>
                 <h4>{p.name}</h4>
                 <div className="role">{p.role}</div>
-                {p.link && (
-                  <a className="lnk" href={p.link} target="_blank" rel="noopener noreferrer">Profile</a>
-                )}
+                <a
+                  className="pcardLinkedin"
+                  href={p.linkedin || p.link || 'https://www.linkedin.com'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${p.name}'s LinkedIn profile`}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.53 1.53 0 0 0 0-3.06 1.53 1.53 0 0 0 0 3.06m1.4 9.74v-8.37H5.06v8.37h2.8z" />
+                  </svg>
+                  <span>LinkedIn</span>
+                  <svg className="extArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="10" height="10" aria-hidden="true">
+                    <path d="M7 17L17 7M17 7H7M17 7V17" />
+                  </svg>
+                </a>
               </article>
             ))}
           </div>
@@ -1913,14 +1922,23 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="pgrid" id="stuGrid">
             {ZYNTRA_CONFIG.students.map((p, i) => (
               <article key={i} className="pcard glass rv2 in">
-                <div className="avatar" aria-hidden="true">
-                  {p.photo ? <img src={p.photo} alt={p.name} /> : getInitials(p.name)}
-                </div>
                 <h4>{p.name}</h4>
                 <div className="role">{p.role}</div>
-                {p.link && (
-                  <a className="lnk" href={p.link} target="_blank" rel="noopener noreferrer">Profile</a>
-                )}
+                <a
+                  className="pcardLinkedin"
+                  href={p.linkedin || p.link || 'https://www.linkedin.com'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${p.name}'s LinkedIn profile`}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.53 1.53 0 0 0 0-3.06 1.53 1.53 0 0 0 0 3.06m1.4 9.74v-8.37H5.06v8.37h2.8z" />
+                  </svg>
+                  <span>LinkedIn</span>
+                  <svg className="extArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="10" height="10" aria-hidden="true">
+                    <path d="M7 17L17 7M17 7H7M17 7V17" />
+                  </svg>
+                </a>
               </article>
             ))}
           </div>
