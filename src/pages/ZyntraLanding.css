@@ -215,8 +215,9 @@ html.rm #title .lg{transition:none}html.rm #title .shim{display:none}html.rm #ti
 #sky{position:absolute;inset:0;transform-origin:50% 50%}
 #fg{position:absolute;inset:0;-webkit-mask-image:linear-gradient(0deg,#000 0,#000 22%,transparent 42%);mask-image:linear-gradient(0deg,#000 0,#000 22%,transparent 42%);transform-origin:50% 50%;will-change:transform}
 @media(max-width:860px){#enter .bg{background-position:15% center}}
-.enterGrid{position:absolute;inset:0;display:grid;grid-template-columns:1.1fr .9fr;align-items:center;padding:8vh clamp(24px,7vw,120px) 6vh;gap:4vw}
-.rv{opacity:0;transform:translate3d(0,20px,0);will-change:transform,opacity}
+.enterGrid{position:absolute;inset:0;display:grid;grid-template-columns:1.1fr .9fr;align-items:center;padding:8vh clamp(24px,7vw,120px) 6vh;gap:4vw;z-index:2;pointer-events:auto}
+.rv{opacity:0;transform:translate3d(0,20px,0);will-change:transform,opacity;transition:opacity .4s ease,transform .4s ease}
+.rv.in{opacity:1!important;transform:none!important}
 #enter h2{font-size:clamp(1.5rem,3.6vw,3.1rem);margin:14px 0 clamp(14px,3vh,30px)}
 .big{font-size:clamp(2.6rem,8.2vw,7rem);font-weight:800;text-transform:uppercase;letter-spacing:.06em;line-height:1;background:linear-gradient(180deg,#fff,#a9d8ff 55%,#3b8cff);-webkit-background-clip:text;background-clip:text;color:transparent;display:block}
 .eic{margin-top:clamp(14px,3vh,28px);display:flex;flex-wrap:wrap;gap:6px 22px;font-size:clamp(.74rem,1.2vw,1rem);letter-spacing:.34em;text-transform:uppercase;color:var(--ice)}

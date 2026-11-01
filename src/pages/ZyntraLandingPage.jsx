@@ -99,6 +99,13 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
   const fgRef = useRef(null);
   const hdWrapRef = useRef(null);
   const hdTiltRef = useRef(null);
+  const e0Ref = useRef(null);
+  const e1Ref = useRef(null);
+  const e2Ref = useRef(null);
+  const e3Ref = useRef(null);
+  const e4Ref = useRef(null);
+  const e5Ref = useRef(null);
+  const e6Ref = useRef(null);
   const eyeRef = useRef(null);
   const scanRef = useRef(null);
   const pctRef = useRef(null);
@@ -361,7 +368,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
       }
 
-      // 2. ENTER ANIMATION
+      // 2. ENTER ANIMATION (Chapter 01: Dream. Learn. Build.)
       if (enterEl) {
         const eTop = enterEl.offsetTop;
         const eRange = Math.max(1, enterEl.offsetHeight - vh);
@@ -373,14 +380,34 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           fgRef.current.style.transform = `translate3d(${-mx * 8}px, ${-my * 4}px, 0) scale(${(1.03 + pe * 0.06).toFixed(4)})`;
         }
         if (hdWrapRef.current) {
-          const pk = smoothstep(0.1, 0.46, pe);
-          const pOut = 1 - smoothstep(0.9, 0.98, pe);
+          const pk = smoothstep(0.06, 0.38, pe);
+          const pOut = 1 - smoothstep(0.92, 1.0, pe);
           hdWrapRef.current.style.opacity = (pk * pOut).toFixed(3);
           hdWrapRef.current.style.transform = `translate3d(${((1 - pk) * (vw <= 860 ? vw * 0.4 : vw * 0.25)).toFixed(1)}px, ${((0.5 - pe) * vh * 0.1).toFixed(1)}px, 0) scale(${(0.9 + 0.1 * pk).toFixed(3)})`;
         }
         if (hdTiltRef.current) {
           hdTiltRef.current.style.transform = `perspective(1000px) rotateY(${mx * 9}deg) rotateX(${-my * 7}deg)`;
         }
+
+        // Animate motivational typography: Dream. Learn. Build. Explore / Innovate / Create
+        const eElements = [e0Ref.current, e1Ref.current, e2Ref.current, e3Ref.current, e4Ref.current, e5Ref.current, e6Ref.current];
+        const thresholds = [0.02, 0.06, 0.14, 0.22, 0.30, 0.40, 0.48];
+        eElements.forEach((el, idx) => {
+          if (!el) return;
+          if (RM) {
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+            el.style.filter = 'none';
+            return;
+          }
+          const t = thresholds[idx];
+          const k = smoothstep(t, t + 0.10, pe);
+          const pOut = 1 - smoothstep(0.92, 1.0, pe);
+          const op = Math.max(0, k * pOut);
+          el.style.opacity = op.toFixed(3);
+          el.style.transform = `translateY(${((1 - k) * 30).toFixed(1)}px)`;
+          el.style.filter = k < 0.98 ? `blur(${((1 - k) * 6).toFixed(1)}px)` : 'none';
+        });
       }
 
       // 3. EVENTS OPTIC SCAN HUD
@@ -1155,13 +1182,13 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="dim" />
           <div className="enterGrid">
             <div className="txt">
-              <div className="label rv" id="e0">Transition · Chapter 01</div>
-              <h2 className="rv" id="e1">Enter the dimension</h2>
-              <span className="big rv" id="e2">Dream.</span>
-              <span className="big rv" id="e3">Learn.</span>
-              <span className="big rv" id="e4">Build.</span>
-              <div className="eic rv" id="e5"><span>Explore</span><i>/</i><span>Innovate</span><i>/</i><span>Create</span></div>
-              <div className="chip glass rv" id="e6">November 2026 <span style={{ opacity: 0.5 }}>·</span> Sapthagiri NPS University</div>
+              <div className="label rv" id="e0" ref={e0Ref}>Transition · Chapter 01</div>
+              <h2 className="rv" id="e1" ref={e1Ref}>Enter the dimension</h2>
+              <span className="big rv" id="e2" ref={e2Ref}>Dream.</span>
+              <span className="big rv" id="e3" ref={e3Ref}>Learn.</span>
+              <span className="big rv" id="e4" ref={e4Ref}>Build.</span>
+              <div className="eic rv" id="e5" ref={e5Ref}><span>Explore</span><i>/</i><span>Innovate</span><i>/</i><span>Create</span></div>
+              <div className="chip glass rv" id="e6" ref={e6Ref}>November 2026 <span style={{ opacity: 0.5 }}>·</span> Sapthagiri NPS University</div>
             </div>
           </div>
         </div>
