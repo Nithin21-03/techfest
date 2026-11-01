@@ -1121,9 +1121,13 @@ export function Flow({ ev, onDone, close, user }) {
   const solo = /^individual$/i.test(ev.team);
   const draftKey = 'zyntra_draft_' + ev.id;
   const draft = load(draftKey, null);
+  const sess = load('zyntra_session', null);
+  const initialEmail = (user && user.email) || (sess && sess.email) || (draft && draft.d && draft.d.email) || '';
+
   const blank = {
     team: '',
-    leader: '',
+    leader: (user && user.name) || (sess && sess.name) || '',
+    email: initialEmail,
     phone: '',
     roll: '',
     dept: '',
@@ -1131,14 +1135,17 @@ export function Flow({ ev, onDone, close, user }) {
     members: [{ name: '', phone: '', roll: '', dept: '' }],
   };
 
-  const [d, setD] = useState(draft && draft.d ? draft.d : blank);
-  // steps: 0 leader, 1 members, 2 verify, 3 sign in, 4 payment, 5 thank you
+  const [d, setD] = useState(draft && draft.d ? { ...blank, ...draft.d, email: draft.d.email || initialEmail } : blank);
+  // steps: 0 leader, 1 members, 2 verify, 3 confirm/notice, 4 payment, 5 thank you
   const [step, setStep] = useState(user && draft ? 4 : 0);
-  const [email, setEmail] = useState(user ? user.email : '');
+  const [email, setEmail] = useState(initialEmail);
   const [ok, setOk] = useState(false);
   const [txn, setTxn] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedTicketId, setAssignedTicketId] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [screenshot, setScreenshot] = useState(null);
+  const [screenshotName, setScreenshotName] = useState('');
 
   useEffect(() => {
     store(draftKey, { d });
@@ -1150,25 +1157,41 @@ export function Flow({ ev, onDone, close, user }) {
 
   const set = (k) => (e) => setD({ ...d, [k]: e.target.value });
   const fee = PAY.fee[ev.id] || 100;
-  const phoneOk = /^[6-9]\d{9}$/.test(d.phone.replace(/\s/g, ''));
+  const cleanPhone = (v) => (v || '').replace(/\D/g, '').slice(-10);
+  const phoneOk = /^[6-9]\d{9}$/.test(cleanPhone(d.phone));
+  const activeEmail = (d.email || email || '').trim().toLowerCase();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(activeEmail);
   const leaderOk =
     d.leader.trim() &&
+    emailOk &&
     phoneOk &&
     d.roll.trim() &&
     d.dept.trim() &&
     d.college.trim() &&
     (solo || d.team.trim());
 
-  const mPhoneOk = (v) => /^[6-9]\d{9}$/.test((v || '').replace(/\s/g, ''));
+  const mPhoneOk = (v) => /^[6-9]\d{9}$/.test(cleanPhone(v));
   const membersOk =
     solo ||
     d.members.every((m) => m.name.trim() && mPhoneOk(m.phone) && m.roll.trim());
 
-  const upi = PAY.upi
-    ? `upi://pay?pa=${encodeURIComponent(PAY.upi)}&pn=${encodeURIComponent(
-      PAY.payee
-    )}&am=${fee}&cu=INR&tn=${encodeURIComponent(ev.name)}`
-    : '';
+  const defaultUpi = PAY.upi || 'zyntra2026@okhdfcbank';
+  const upi = `upi://pay?pa=${encodeURIComponent(defaultUpi)}&pn=${encodeURIComponent(
+    PAY.payee || "ZYNTRA '26"
+  )}&am=${fee}&cu=INR&tn=${encodeURIComponent(ev.name)}`;
+  const qrImg = PAY.qr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upi)}`;
+
+  const handleScreenshotChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScreenshotName(file.name);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshot(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const setMem = (i, k, v) =>
     setD({
@@ -1194,7 +1217,8 @@ export function Flow({ ev, onDone, close, user }) {
       ticketId: genTicket,
       fullName: d.leader.trim(),
       college: d.college.trim() || 'Sapthagiri NPS University',
-      email: email.trim().toLowerCase(),
+      email: (d.email || email || '').trim().toLowerCase(),
+      screenshot: screenshot || '',
       phone: d.phone.trim(),
       studentId: d.roll.trim() || 'N/A',
       department: d.dept.trim() || 'Computer Science & Engineering',
@@ -1246,7 +1270,7 @@ export function Flow({ ev, onDone, close, user }) {
     } catch (lsErr) { }
 
     // Complete workflow callback
-    onDone({ email, ...d, txn, fee, ticketId: genTicket });
+    onDone({ email: (d.email || email), ...d, txn, fee, ticketId: genTicket });
     try {
       localStorage.removeItem(draftKey);
     } catch (e) { }
@@ -1317,15 +1341,37 @@ export function Flow({ ev, onDone, close, user }) {
                 required
               />
             </Field>
+            <Field label="Leader email address">
+              <input
+                type="email"
+                autoComplete="email"
+                value={d.email || email}
+                onChange={(e) => {
+                  set('email')(e);
+                  setEmail(e.target.value);
+                }}
+                placeholder="student@gmail.com"
+                required
+              />
+            </Field>
+          </div>
+          <div className="two">
             <Field label="Leader mobile number">
               <input
                 type="tel"
                 inputMode="numeric"
-                maxLength="10"
                 autoComplete="tel"
                 value={d.phone}
                 onChange={set('phone')}
-                placeholder="10-digit number"
+                placeholder="10-digit mobile number"
+                required
+              />
+            </Field>
+            <Field label="College name">
+              <input
+                value={d.college}
+                onChange={set('college')}
+                placeholder="College / University name"
                 required
               />
             </Field>
@@ -1333,14 +1379,6 @@ export function Flow({ ev, onDone, close, user }) {
           {d.phone && !phoneOk && (
             <div className="err">Enter a valid 10-digit mobile number.</div>
           )}
-          <Field label="College name">
-            <input
-              value={d.college}
-              onChange={set('college')}
-              placeholder="College name"
-              required
-            />
-          </Field>
           <div className="two">
             <Field label="Department">
               <input
@@ -1488,6 +1526,7 @@ export function Flow({ ev, onDone, close, user }) {
             rows={[
               ...(solo ? [] : [['Team', d.team]]),
               ['Name', d.leader],
+              ['Email', d.email || email],
               ['Mobile', d.phone],
               ['College', d.college],
               ['Department', d.dept],
@@ -1521,9 +1560,9 @@ export function Flow({ ev, onDone, close, user }) {
             <button
               className="btn pri"
               disabled={!ok}
-              onClick={() => setStep(3)}
+              onClick={() => setStep(4)}
             >
-              Verified · continue
+              Verified · Proceed to Payment (₹{fee}) →
             </button>
             <button className="mini" onClick={prev}>
               Back
@@ -1533,19 +1572,16 @@ export function Flow({ ev, onDone, close, user }) {
       )}
 
       {step === 3 && (
-        <div>
-          <p className="hint" style={{ textAlign: 'center', marginBottom: 14 }}>
-            Sign in with your Gmail to continue to payment.
+        <div className="glass panel" style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+          <h3>Verification Complete</h3>
+          <p className="hint">
+            All details verified for <b>{ev.name}</b>. Ready to proceed to payment.
           </p>
-          <SignIn
-            evId={ev.id}
-            onAuth={(u) => {
-              setEmail(u.email);
-              setStep(4);
-            }}
-          />
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <button className="mini" onClick={prev}>
+          <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
+            <button className="btn pri" onClick={() => setStep(4)}>
+              Proceed to Payment (₹{fee}) →
+            </button>
+            <button className="mini" onClick={() => setStep(2)}>
               ← Back to verify
             </button>
           </div>
@@ -1568,8 +1604,8 @@ export function Flow({ ev, onDone, close, user }) {
               <b style={{ color: '#fff' }}>{d.team || d.leader}</b>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(228,244,255,0.5)' }}>Verified Google ID</span>
-              <b style={{ color: '#3fd8ff', fontSize: '0.82rem' }}>{email}</b>
+              <span style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(228,244,255,0.5)' }}>Candidate Contact Email</span>
+              <b style={{ color: '#3fd8ff', fontSize: '0.82rem' }}>{d.email || email || 'Provided'}</b>
             </div>
           </div>
 
@@ -1806,8 +1842,8 @@ export function Flow({ ev, onDone, close, user }) {
             >
               {isSubmitting ? 'Verifying & Syncing…' : 'Confirm payment & Register'}
             </button>
-            <button className="mini" onClick={() => setStep(3)}>
-              Back
+            <button className="mini" onClick={() => setStep(2)}>
+              ← Back to verify
             </button>
           </div>
         </div>
