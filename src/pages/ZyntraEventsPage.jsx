@@ -1258,7 +1258,7 @@ export function Flow({ ev, onDone, close, user }) {
       base64Data = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
     } catch (_) { }
 
-    const verifyUrl = `${window.location.origin}/#verify?id=${encodeURIComponent(genTicket)}&data=${encodeURIComponent(base64Data)}`;
+    const verifyUrl = `${window.location.origin}/#verify?id=${encodeURIComponent(genTicket)}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(verifyUrl)}`;
 
     setTicketVerifyLink(verifyUrl);
