@@ -108,6 +108,16 @@ function getConnectionString() {
   if (!raw) return null;
   let str = raw.trim();
 
+  // Auto-rewrite direct Supabase IPv6 host (which fails on Vercel serverless with ENOTFOUND) to IPv4 Pooler
+  if (str.includes('db.yjmkprrvjhvpsrnnlugn.supabase.co')) {
+    str = str
+      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co:5432', 'aws-1-eu-west-3.pooler.supabase.com:6543')
+      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co', 'aws-1-eu-west-3.pooler.supabase.com:6543');
+    if (!str.includes('postgres.yjmkprrvjhvpsrnnlugn:')) {
+      str = str.replace('postgres:', 'postgres.yjmkprrvjhvpsrnnlugn:');
+    }
+  }
+
   // Auto-sanitize: handles accidental square brackets around passwords or special characters
   const m = str.match(/^(postgres(?:ql)?:\/\/)([^:]+):(.*)@([^@]+)$/);
   if (m) {
