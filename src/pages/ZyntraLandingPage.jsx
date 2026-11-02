@@ -465,14 +465,17 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
         if (eyeRef.current) {
           if (isMobile) {
-            eyeRef.current.style.transform = 'translate3d(-50%, -50%, 0) scale(1)';
-            eyeRef.current.style.opacity = '0.75';
+            eyeRef.current.style.transform = 'translate(-50%, -50%) scale(1)';
+            eyeRef.current.style.opacity = '0.9';
           } else {
-            const eyeScale = (0.3 + 0.7 * open) * Math.exp(Math.log(5) * zoom);
-            const eyeOp = (0.2 + 0.8 * open) * (1 - zoom * 0.8);
-            eyeRef.current.style.transform = `translate3d(-50%, -55%, 0) scale(${eyeScale.toFixed(3)})`;
-            eyeRef.current.style.opacity = eyeOp <= 0.01 ? '0' : eyeOp.toFixed(3);
+            const eyeScale = (0.75 + 0.25 * open) * Math.exp(Math.log(4.5) * zoom);
+            const eyeOp = Math.max(0.65, (0.75 + 0.25 * open) * (1 - zoom * 0.45));
+            eyeRef.current.style.transform = `scale(${eyeScale.toFixed(3)})`;
+            eyeRef.current.style.opacity = eyeOp.toFixed(3);
           }
+        }
+        if (scanRef.current) {
+          scanRef.current.style.opacity = isMobile ? '0.85' : (0.2 + 0.8 * open).toFixed(3);
         }
         if (reticleRef.current) {
           if (isMobile) {
@@ -1536,7 +1539,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       <section className="pin" id="events" aria-label="Events">
         <div className="stage">
           <div id="portalbg" ref={pbgRef}><i /><i /><i /></div>
-          <div id="eyewrap"><div className="img" ref={eyeRef} /><div id="scan" ref={scanRef} /></div>
+          <div id="eyewrap" ref={eyeRef}><div className="img" /><div id="scan" ref={scanRef} /></div>
           <div id="reticle" ref={reticleRef}>
             <svg viewBox="-100 -100 200 200" fill="none" stroke="#3fd8ff" strokeWidth="0.6">
               <g className="r1"><circle r="92" strokeDasharray="2 5" /><circle r="84" strokeOpacity="0.5" /><path d="M0-100v10M0 100V90M-100 0h10M100 0H90" strokeWidth="1.4" /></g>

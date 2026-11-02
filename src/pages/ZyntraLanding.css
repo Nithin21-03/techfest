@@ -254,6 +254,7 @@ html.rm #title .lg{transition:none}html.rm #title .shim{display:none}html.rm #ti
 
 /* TRANSITION 1 */
 .dim{position:absolute;inset:0}
+#enter .stage{-webkit-mask-image:none!important;mask-image:none!important}
 #enter .dim{background:linear-gradient(90deg,rgba(2,5,15,.82),rgba(2,5,15,.35) 55%,rgba(2,5,15,.1)),linear-gradient(0deg,rgba(2,5,15,.5),transparent 35%)}
 #enter .bg{position:absolute;inset:0;background-size:cover;background-position:center center;background-repeat:no-repeat;will-change:transform}
 #sky{position:absolute;inset:0;transform-origin:50% 50%}
@@ -374,8 +375,8 @@ html.rm .hdBgLayer{opacity:1}
 #portalbg i:nth-child(2){animation-delay:-2s}
 #portalbg i:nth-child(3){animation-delay:-4s}
 @keyframes ring{0%{transform:scale(.2);opacity:0}15%{opacity:.8}100%{transform:scale(2.6);opacity:0}}
-#eyewrap{position:absolute;width:min(96vw,130vh);aspect-ratio:1300/980;left:50%;top:50%;transform:translate3d(-52.2%,-56%,0);transform-origin:52.2% 56%;opacity:0;will-change:transform,opacity,filter;pointer-events:none;z-index:2}
-#eyewrap .img{position:absolute;inset:0;background:var(--i-eye) center/100% 100% no-repeat;-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 55%,transparent 98%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 55%,transparent 98%)}
+#eyewrap{position:absolute;width:min(96vw,130vh);aspect-ratio:1300/980;left:calc(50% - .52*min(96vw,130vh));top:calc(50% - .55*min(96vw,130vh)*.7538);transform-origin:52% 55%;opacity:1;will-change:transform,opacity,filter;pointer-events:none;z-index:2}
+#eyewrap .img{position:absolute;inset:0;background:var(--i-eye) center/100% 100% no-repeat;-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 55%,transparent 98%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 55%,transparent 98%);opacity:1}
 #scan{position:absolute;left:8%;right:8%;top:10%;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),#fff,var(--cyan),transparent);box-shadow:0 0 18px 4px rgba(63,216,255,.7);animation:scan 3.6s ease-in-out infinite;opacity:0;will-change:opacity}
 @keyframes scan{0%,100%{top:14%}50%{top:86%}}
 #reticle{position:absolute;left:50%;top:50%;width:min(52vw,58vh);aspect-ratio:1;margin:calc(min(52vw,58vh)/-2) 0 0 calc(min(52vw,58vh)/-2);opacity:0;will-change:transform,opacity;pointer-events:none;z-index:4}
@@ -532,7 +533,8 @@ html.rm #eyeHalo .haloOrbit{animation:none!important}
 @keyframes regGlow{0%,100%{box-shadow:0 0 22px rgba(63,216,255,.4),0 0 52px rgba(47,123,255,.25),inset 0 1px 0 rgba(255,255,255,.4)}50%{box-shadow:0 0 28px rgba(63,216,255,.52),0 0 64px rgba(47,123,255,.34),inset 0 1px 0 rgba(255,255,255,.42)}}
 @media(max-width:860px){
   #events .stage{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;padding:0 16px!important;position:relative!important}
-  #eyewrap{width:min(76vw,280px)!important;height:min(76vw,280px)!important;position:relative!important;top:auto!important;left:auto!important;transform:none!important;margin:0 auto!important}
+  #eyewrap{width:min(80vw,300px)!important;height:min(80vw,300px)!important;position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;transform-origin:center center!important;margin:0!important;opacity:1!important;z-index:2!important}
+  #eyewrap .img{position:absolute!important;inset:0!important;background:var(--i-eye) center/contain no-repeat!important;opacity:1!important}
   #reticle{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;width:min(82vw,300px)!important;height:min(82vw,300px)!important;opacity:.85!important;pointer-events:none!important}
   .regOverlay{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;z-index:15!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important}
   .cta{position:absolute!important;bottom:max(16px,3.5vh)!important;left:50%!important;transform:translateX(-50%)!important;z-index:15!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;width:auto!important;white-space:nowrap!important}
