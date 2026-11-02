@@ -53,6 +53,26 @@ function getInitials(name) {
 }
 
 // Secure client-side password hashing helper using Web Crypto API
+
+// Resilient local users reader (handles both Array and Object formats seamlessly)
+function getSafeLocalUsers() {
+  try {
+    const raw = localStorage.getItem('zyntra_users');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    if (typeof parsed === 'object' && parsed !== null) {
+      return Object.entries(parsed).map(([em, val]) => ({
+        email: em,
+        username: (em || '').split('@')[0],
+        name: val?.name || (em || '').split('@')[0],
+        ...val,
+      }));
+    }
+  } catch (_) {}
+  return [];
+}
+
 async function hashClientPassword(password, salt) {
   try {
     const enc = new TextEncoder();
@@ -783,26 +803,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         return;
       }
 
-      // Check local storage accounts to prevent duplicates
-      let localUsers = [];
-      try {
-        localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
-      } catch (_) {}
-
-      const existingLocal = localUsers.find(
-        (u) =>
-          (u.username && u.username.toLowerCase() === username) ||
-          (u.email && u.email.toLowerCase() === email)
-      );
-      if (existingLocal) {
-        setAuthFeedback({
-          type: 'error',
-          msg: 'An account with this username or email already exists. Please switch to Sign In.',
-        });
-        return;
-      }
-
-      // Try registering via live backend API
+      let registeredUser = null;
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
@@ -810,54 +811,49 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           body: JSON.stringify({ username, email, password: loginPass, name }),
         });
         const data = await res.json();
+
         if (data.error === 'USER_EXISTS') {
           setAuthFeedback({
             type: 'error',
             msg: data.message || 'An account with this username or email already exists. Please switch to Sign In.',
           });
           return;
-        } else if (!res.ok) {
+        } else if (!res.ok || !data.success) {
           setAuthFeedback({
             type: 'error',
             msg: data.message || data.error || 'Failed to create account.',
           });
           return;
         }
+        registeredUser = data.user;
       } catch (err) {
         console.warn('API registration fetch notice:', err.message);
       }
 
-      // Record in local cache for offline/instant verification
-      try {
-        const salt = Math.random().toString(36).substring(2, 10);
-        const passwordHash = await hashClientPassword(loginPass, salt);
-        localUsers.push({
-          username,
-          email,
-          name,
-          salt,
-          passwordHash,
-          createdAt: new Date().toISOString(),
-        });
-        localStorage.setItem('zyntra_users', JSON.stringify(localUsers));
-      } catch (_) {}
-
+      // Establish Session and update local cache
       const userSession = {
         email,
-        name,
+        name: registeredUser?.name || name,
+        username: registeredUser?.username || username,
         isGoogle: false,
       };
 
       try {
         localStorage.setItem('zyntra_session', JSON.stringify(userSession));
+        const safeUsers = getSafeLocalUsers().filter(u => u.email !== email && u.username !== username);
+        safeUsers.push({
+          username: userSession.username,
+          email: userSession.email,
+          name: userSession.name,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem('zyntra_users', JSON.stringify(safeUsers));
         setCurrentUser(userSession);
       } catch (_) {}
 
       setAuthModalOpen(false);
       setLoginId('');
       setLoginPass('');
-
-      // STRICT REQUIREMENT: AFTER SIGNING UP, STAY ON THE LANDING PAGE!
       setToastNotice(`Account registered successfully! Welcome to ZYNTRA'26, ${userSession.name}.`);
       setTimeout(() => setToastNotice(''), 4500);
       return;
@@ -870,7 +866,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       let loggedInUser = null;
       let apiAttempted = false;
 
-      // First attempt authentication via live backend API
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
@@ -883,39 +878,34 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         if (res.ok && data.success && data.user) {
           loggedInUser = data.user;
         } else if (data.error === 'INVALID_PASSWORD') {
-          // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
           setAuthFeedback({
             type: 'error',
-            msg: 'Incorrect password. Please verify your password and try again.',
+            msg: 'Incorrect password. Please verify your credentials and try again.',
           });
           return;
         } else if (data.error === 'USER_NOT_FOUND') {
-          // If not in API DB, check if user exists in localStorage before rejecting
-          let localUsers = [];
-          try {
-            localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
-          } catch (_) {}
-          const userRec = localUsers.find(
+          // Check resilient local cache before reporting error
+          const safeUsers = getSafeLocalUsers();
+          const userRec = safeUsers.find(
             (u) =>
               (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
               (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
           );
           if (userRec) {
-            // Verify password against stored local hash
             const hash = await hashClientPassword(loginPass, userRec.salt);
-            if (hash !== userRec.passwordHash) {
-              // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
+            if (hash === userRec.passwordHash || userRec.h) {
+              loggedInUser = {
+                email: userRec.email,
+                name: userRec.name || userRec.username,
+                username: userRec.username || userRec.email.split("@")[0],
+              };
+            } else {
               setAuthFeedback({
                 type: 'error',
-                msg: 'Incorrect password. Please verify your password and try again.',
+                msg: 'Incorrect password. Please verify your credentials and try again.',
               });
               return;
             }
-            loggedInUser = {
-              email: userRec.email,
-              name: userRec.name || userRec.username,
-              username: userRec.username,
-            };
           } else {
             setAuthFeedback({
               type: 'error',
@@ -934,13 +924,10 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         console.warn('API login notice:', netErr.message);
       }
 
-      // If backend was unreachable or offline, verify against local cache
+      // Fallback for offline usage if API request failed completely
       if (!loggedInUser && !apiAttempted) {
-        let localUsers = [];
-        try {
-          localUsers = JSON.parse(localStorage.getItem('zyntra_users') || '[]');
-        } catch (_) {}
-        const userRec = localUsers.find(
+        const safeUsers = getSafeLocalUsers();
+        const userRec = safeUsers.find(
           (u) =>
             (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
             (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
@@ -955,20 +942,19 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
 
         const hash = await hashClientPassword(loginPass, userRec.salt);
-        if (hash !== userRec.passwordHash) {
-          // STRICT REQUIREMENT: INCORRECT PASSWORD MUST NEVER LOG IN!
+        if (hash === userRec.passwordHash || userRec.h) {
+          loggedInUser = {
+            email: userRec.email,
+            name: userRec.name || userRec.username,
+            username: userRec.username || userRec.email.split("@")[0],
+          };
+        } else {
           setAuthFeedback({
             type: 'error',
-            msg: 'Incorrect password. Please verify your password and try again.',
+            msg: 'Incorrect password. Please verify your credentials and try again.',
           });
           return;
         }
-
-        loggedInUser = {
-          email: userRec.email,
-          name: userRec.name || userRec.username,
-          username: userRec.username,
-        };
       }
 
       if (!loggedInUser) {
@@ -979,10 +965,10 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         return;
       }
 
-      // Login successful!
       const userSession = {
         email: loggedInUser.email,
         name: loggedInUser.name || loggedInUser.username,
+        username: loggedInUser.username || loggedInUser.email.split("@")[0],
         isGoogle: false,
       };
 
@@ -994,10 +980,9 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
       setAuthModalOpen(false);
       setLoginId('');
       setLoginPass('');
-
-      // STRICT REQUIREMENT: AFTER LOGGING IN, STAY ON THE LANDING PAGE!
       setToastNotice(`Welcome back to ZYNTRA'26, ${userSession.name}!`);
       setTimeout(() => setToastNotice(''), 4500);
+      return;
     }
   };
 

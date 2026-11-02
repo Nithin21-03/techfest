@@ -923,33 +923,89 @@ export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
     setMsg('');
     const email = f.email.trim().toLowerCase();
     if (!mailOk) return setErr('Enter a valid email address.');
-    const users = load('zyntra_users', {});
     setBusy(true);
+
     try {
-      const h = await sha(f.pw + '|' + email);
       if (up) {
         if (!f.name.trim()) return setErr('Enter your full name.');
-        if (f.pw.length < 8) return setErr('Password must be at least 8 characters.');
+        if (f.pw.length < 6) return setErr('Password must be at least 6 characters.');
         if (f.pw !== f.pw2) return setErr('Passwords do not match.');
-        if (users[email])
-          return setErr('An account with this email already exists. Sign in instead.');
-        users[email] = { name: f.name.trim(), h };
-        store('zyntra_users', users);
-        const u = { email, name: f.name.trim() };
+
+        const username = email.split('@')[0];
+        let registeredUser = null;
+
+        try {
+          const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username,
+              email,
+              password: f.pw,
+              name: f.name.trim()
+            })
+          });
+          const data = await res.json();
+          if (data.error === 'USER_EXISTS') {
+            return setErr(data.message || 'An account with this email already exists. Please sign in instead.');
+          } else if (!res.ok || !data.success) {
+            return setErr(data.message || data.error || 'Failed to create account.');
+          }
+          registeredUser = data.user;
+        } catch (apiErr) {
+          console.warn('API register notice, using local session:', apiErr.message);
+        }
+
+        const u = {
+          email,
+          name: registeredUser?.name || f.name.trim(),
+          username: registeredUser?.username || username,
+          isGoogle: false
+        };
+
         if (f.remember) store('zyntra_session', u);
         onAuth(u);
       } else {
-        if (!users[email] || users[email].h !== h)
-          return setErr('Incorrect email or password.');
-        const u = { email, name: users[email].name };
+        if (!f.pw) return setErr('Please enter your password.');
+        let authenticatedUser = null;
+
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: email, password: f.pw })
+          });
+          const data = await res.json();
+          if (res.ok && data.success && data.user) {
+            authenticatedUser = data.user;
+          } else if (data.error === 'INVALID_PASSWORD') {
+            return setErr('Incorrect password. Please verify and try again.');
+          } else if (data.error === 'USER_NOT_FOUND') {
+            return setErr('No account found with this email. Please click Sign up to create an account.');
+          } else {
+            return setErr(data.message || 'Authentication failed.');
+          }
+        } catch (apiErr) {
+          console.warn('API login notice:', apiErr.message);
+          return setErr('Unable to connect to authentication server. Please check your network.');
+        }
+
+        const u = {
+          email: authenticatedUser.email,
+          name: authenticatedUser.name || authenticatedUser.username,
+          username: authenticatedUser.username,
+          isGoogle: false
+        };
+
         if (f.remember) store('zyntra_session', u);
         onAuth(u);
       }
+    } catch (err) {
+      setErr('Authentication error: ' + err.message);
     } finally {
       setBusy(false);
     }
   }
-
   function forgot() {
     const email = f.email.trim().toLowerCase();
     if (!mailOk)
