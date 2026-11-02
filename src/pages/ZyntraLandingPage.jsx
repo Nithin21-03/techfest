@@ -135,7 +135,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
   const pbgRef = useRef(null);
   const haloRef = useRef(null);
   const regOverlayRef = useRef(null);
-  const ctaRef = useRef(null);
   const net1Ref = useRef(null);
   const net2Ref = useRef(null);
   const net3Ref = useRef(null);
@@ -499,18 +498,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
             regOverlayRef.current.style.pointerEvents = kRev > 0.5 ? 'auto' : 'none';
           }
         }
-        if (ctaRef.current) {
-          if (isMobile) {
-            ctaRef.current.style.opacity = '1';
-            ctaRef.current.style.visibility = 'visible';
-            ctaRef.current.style.pointerEvents = 'auto';
-          } else {
-            const kRoad = smoothstep(0.64, 0.82, pv);
-            ctaRef.current.style.opacity = kRoad.toFixed(3);
-            ctaRef.current.style.visibility = kRoad > 0.05 ? 'visible' : 'hidden';
-            ctaRef.current.style.pointerEvents = kRoad > 0.5 ? 'auto' : 'none';
-          }
-        }
+
       }
 
       // 3.5. CONNECT SECTION ANIMATION
@@ -1586,21 +1574,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
             </button>
           </div>
 
-          {/* SECONDARY CTA */}
-          <div className="cta" id="cta" ref={ctaRef}>
-            <a
-              className="btnRoad"
-              href="#roadmap"
-              onClick={(e) => { e.preventDefault(); scrollToSection('roadmap'); }}
-              aria-label="View Event Roadmap"
-            >
-              <span>View Event Roadmap</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </a>
-          </div>
+
         </div>
       </section>
 
