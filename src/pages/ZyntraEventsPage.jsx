@@ -433,7 +433,15 @@ export function Card({ ev, open, regs, locked, i }) {
       style={{ '--d': i * 180 + 'ms' }}
       className={'cw ' + (ev.slot.solo ? 's' : i === 0 ? 'l' : 'r')}
     >
-      <article className={'glass card' + (locked ? ' locked' : '')}>
+      <article
+        className={'glass card' + (locked ? ' locked' : '')}
+        onClick={() => open(ev.id)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(ev.id); } }}
+        style={{ cursor: 'pointer' }}
+        aria-label={`View details for ${ev.name}`}
+      >
         <Pic
           cls="pic"
           img={MEDIA[ev.id]?.img}
@@ -454,7 +462,7 @@ export function Card({ ev, open, regs, locked, i }) {
             </span>
           </div>
           <div className="row">
-            <button className="btn" onClick={() => open(ev.id)}>
+            <button className="btn" onClick={(e) => { e.stopPropagation(); open(ev.id); }}>
               View details
             </button>
             {mine && <span className="ok">✓ Registered</span>}

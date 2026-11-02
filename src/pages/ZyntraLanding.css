@@ -685,7 +685,9 @@ html.rm #eyeHalo .haloOrbit{animation:none!important}
 
 /* Parallel Flow: Shared time slot grouping */
 .rmAltGroup{display:flex;flex-direction:column;gap:1px;margin-top:2px}
-.rmAlt{padding:1px 0}
+.rmAlt{padding:3px 6px;border-radius:8px;cursor:pointer;transition:all .2s var(--ease)}
+.rmAlt:hover{background:rgba(63,216,255,.07);transform:translateX(4px)}
+.rmAlt:hover .rmTitle{color:var(--cyan);text-shadow:0 0 10px rgba(63,216,255,.4)}
 .rmAltOpt{
  font-size:.56rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
  color:var(--cyan);opacity:.8;margin-bottom:1px;display:inline-block;

@@ -495,7 +495,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
             const kRev = smoothstep(0.58, 0.76, pv);
             regOverlayRef.current.style.opacity = kRev.toFixed(3);
             regOverlayRef.current.style.visibility = kRev > 0.05 ? 'visible' : 'hidden';
-            regOverlayRef.current.style.pointerEvents = kRev > 0.5 ? 'auto' : 'none';
+            regOverlayRef.current.style.pointerEvents = kRev > 0.05 ? 'auto' : 'none';
           }
         }
 
@@ -1591,17 +1591,17 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
             <h2>Everything is connected</h2>
           </div>
           <div className="trio">
-            <div className="pc glass" id="c1" ref={c1Ref}>
+            <div className="pc glass" id="c1" ref={c1Ref} onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} aria-label="Explore events to Connect">
               <div className="n">01</div>
               <h3>Connect</h3>
               <p>Meet people from every field and build links that outlast the fest.</p>
             </div>
-            <div className="pc glass" id="c2" ref={c2Ref}>
+            <div className="pc glass" id="c2" ref={c2Ref} onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} aria-label="Explore events to Compete">
               <div className="n">02</div>
               <h3>Compete</h3>
               <p>Put your skills on the line and push yourself beyond the usual.</p>
             </div>
-            <div className="pc glass" id="c3" ref={c3Ref}>
+            <div className="pc glass" id="c3" ref={c3Ref} onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} aria-label="Explore events to Create">
               <div className="n">03</div>
               <h3>Create</h3>
               <p>Turn a spark of an idea into something real you can show the world.</p>
@@ -1675,7 +1675,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     <span className="rmTag parallel">Parallel Tracks</span>
                   </div>
                   <div className="rmAltGroup">
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option A</span>
                       <h4 className="rmTitle">Project / Paper Presentation</h4>
                       <p className="rmDesc">Original research symposium, engineering innovation prototypes &amp; technical thesis defense.</p>
@@ -1685,7 +1685,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                       <span className="rmOrText">OR</span>
                       <span className="rmOrLine" />
                     </div>
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option B</span>
                       <h4 className="rmTitle">Prompt Detection + Pixel Art</h4>
                       <p className="rmDesc">Prompt engineering deciphering and creative retro digital artwork showdown.</p>
@@ -1716,7 +1716,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     <span className="rmTag parallel">Parallel Tracks</span>
                   </div>
                   <div className="rmAltGroup">
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option A</span>
                       <h4 className="rmTitle">Crime Scene (Forensics)</h4>
                       <p className="rmDesc">Digital forensics, cyber investigation clues, forensic cryptography &amp; enigma unravelling.</p>
@@ -1726,7 +1726,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                       <span className="rmOrText">OR</span>
                       <span className="rmOrLine" />
                     </div>
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option B</span>
                       <h4 className="rmTitle">Debugging Competition</h4>
                       <p className="rmDesc">Fast-paced competitive bug hunting, syntax refactoring &amp; logic repair sprint.</p>
@@ -1753,7 +1753,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               </div>
 
               {/* Day 2 - Entry 1 */}
-              <div className="rmEntry rv2 in" data-slot="escape-room">
+              <div className="rmEntry rv2 in" data-slot="escape-room" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                 <div className="rmNode" aria-hidden="true" />
                 <div className="rmContent">
                   <div className="rmMeta">
@@ -1787,7 +1787,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     <span className="rmTag parallel">Parallel Tracks</span>
                   </div>
                   <div className="rmAltGroup">
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option A</span>
                       <h4 className="rmTitle">Wikkivace</h4>
                       <p className="rmDesc">Speed Wikipedia knowledge racing, hyper-link navigation sprint &amp; trivia traversal.</p>
@@ -1797,7 +1797,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                       <span className="rmOrText">OR</span>
                       <span className="rmOrLine" />
                     </div>
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option B</span>
                       <h4 className="rmTitle">Startup Pitch</h4>
                       <p className="rmDesc">Venture capital simulation, product prototyping demo &amp; business model pitch.</p>
@@ -1815,7 +1815,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                     <span className="rmTag parallel">Parallel Tracks</span>
                   </div>
                   <div className="rmAltGroup">
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option A</span>
                       <h4 className="rmTitle">Treasure Hunt</h4>
                       <p className="rmDesc">Campus-wide cryptic exploration, geo-riddles &amp; checkpoint conquest.</p>
@@ -1825,7 +1825,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
                       <span className="rmOrText">OR</span>
                       <span className="rmOrLine" />
                     </div>
-                    <div className="rmAlt">
+                    <div className="rmAlt" onClick={onOpenEvents} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title="Click to view event details">
                       <span className="rmAltOpt">Option B</span>
                       <h4 className="rmTitle">UI Competition</h4>
                       <p className="rmDesc">High-fidelity user interface design showdown &amp; interaction prototyping.</p>
@@ -1879,7 +1879,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="catHead rv2 in"><h3>Faculty Community</h3><u /></div>
           <div className="pgrid" id="facGrid">
             {ZYNTRA_CONFIG.faculty.map((p, i) => (
-              <article key={i} className="pcard glass rv2 in">
+              <article key={i} className="pcard glass rv2 in" onClick={() => window.open(p.linkedin || p.link || 'https://www.linkedin.com', '_blank')} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title={`View ${p.name}'s LinkedIn`}>
                 <h4>{p.name}</h4>
                 <div className="role">{p.role}</div>
                 <a
@@ -1907,7 +1907,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="catHead rv2 in"><h3>Student Community</h3><u /></div>
           <div className="pgrid" id="stuGrid">
             {ZYNTRA_CONFIG.students.map((p, i) => (
-              <article key={i} className="pcard glass rv2 in">
+              <article key={i} className="pcard glass rv2 in" onClick={() => window.open(p.linkedin || p.link || 'https://www.linkedin.com', '_blank')} role="button" tabIndex={0} style={{ cursor: 'pointer' }} title={`View ${p.name}'s LinkedIn`}>
                 <h4>{p.name}</h4>
                 <div className="role">{p.role}</div>
                 <a

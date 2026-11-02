@@ -23,7 +23,7 @@ h1{font-size:clamp(2rem,6vw,4.4rem);font-weight:800;text-transform:uppercase;let
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .grid.one{grid-template-columns:minmax(0,1fr);max-width:calc(50% - 11px);margin:0 auto}
 @media(max-width:760px){.grid,.grid.one{grid-template-columns:1fr;max-width:none}}
-.card{overflow:hidden;display:flex;flex-direction:column;transition:transform .4s var(--ease),border-color .3s}
+.card{overflow:hidden;display:flex;flex-direction:column;transition:transform .4s var(--ease),border-color .3s;cursor:pointer;user-select:none}
 .card:hover{transform:translateY(-4px);border-color:rgba(63,216,255,.5)}
 .card.locked{opacity:.5}
 .pic{position:relative;aspect-ratio:16/10;background:repeating-linear-gradient(135deg,rgba(47,123,255,.08) 0 14px,rgba(63,216,255,.04) 14px 28px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden}
