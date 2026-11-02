@@ -165,7 +165,8 @@ export const ALL = SLOTS.flatMap((s) => s.events.map((e) => ({ ...e, slot: s }))
 export const MEDIA = {
   paper: { img: '', pdf: '' },
   prompt: { img: '', pdf: '' },
-  crime: { img: '', pdf: '' },
+  crime: { img: '/crime.jpeg', pdf: '' },
+  'crime-scene': { img: '/crime.jpeg', pdf: '' },
   debug: { img: '', pdf: '' },
   escape: { img: '', pdf: '' },
   wiki: { img: '', pdf: '' },
