@@ -1392,7 +1392,7 @@ export function Flow({ ev, onDone, close, user }) {
         id: genTicket,
         timestamp: new Date().toISOString(),
       });
-      localStorage.setItem('zyntra_local_registrations', JSON.stringify(localList));
+      // Real registrations are persisted to database
     } catch (lsErr) { }
 
     // Complete workflow callback

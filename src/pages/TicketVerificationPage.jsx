@@ -4,122 +4,102 @@ import { fetchTicketFromCloud, updateCheckInInCloud } from '../services/dbClient
 
 export default function TicketVerificationPage({ onNavigateHome }) {
   const [ticketData, setTicketData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
     try {
       const hash = window.location.hash || '';
       const queryIdx = hash.indexOf('?');
-      if (queryIdx === -1) return;
+      if (queryIdx === -1) {
+        setIsLoading(false);
+        return;
+      }
 
       const queryString = hash.slice(queryIdx + 1);
       const params = new URLSearchParams(queryString);
       const id = params.get('id');
-      const dataParam = params.get('data');
 
-      let parsed = null;
-
-      // 1. Try decoding embedded base64 data from URL
-      if (dataParam) {
-        try {
-          const jsonStr = decodeURIComponent(escape(atob(dataParam)));
-          parsed = JSON.parse(jsonStr);
-        } catch (e) {
-          console.warn('Base64 decode error:', e);
-        }
+      if (!id) {
+        setIsLoading(false);
+        return;
       }
 
-      // 2. Fall back to local registrations ledger if available
-      if (!parsed && id) {
-        try {
-          const localList = JSON.parse(localStorage.getItem('zyntra_local_registrations') || '[]');
-          parsed = localList.find((r) => r.ticketId === id || r.ticket_id === id || r.id === id);
-        } catch (_) {}
-      }
+      const mapTicket = (t) => ({
+        ticketId: t.ticket_id || id,
+        teamId: t.team_id || 'N/A',
+        teamName: t.team_name || t.project_title || 'Registered Participant',
+        leader: t.full_name,
+        email: t.email,
+        phone: t.phone,
+        college: t.college,
+        dept: t.department,
+        roll: t.student_id,
+        eventName: t.event_name,
+        fee: t.amount_paid,
+        txn: t.transaction_ref,
+        screenshot: t.screenshot,
+        members: t.members_detail || t.team_members || [],
+        timestamp: t.created_at,
+      });
 
-      // 3. Fallback sample if testing with raw #verify
-      if (!parsed && id) {
-        parsed = {
-          ticketId: id,
-          teamId: 'ZY26-TEAM-' + id.slice(-4),
-          teamName: 'Verified Participant Team',
-          leader: 'Registered Candidate',
-          eventName: 'ZYNTRA Technical Arena',
-          fee: 100,
-          txn: 'VERIFIED',
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      if (parsed) {
-        setTicketData(parsed);
-
-        // Check if already checked in locally
-        const checkins = JSON.parse(localStorage.getItem('zyntra_checkins') || '{}');
-        const recordId = parsed.ticketId || parsed.ticket_id || id;
-        if (checkins[recordId]) {
-          setIsCheckedIn(true);
-          setCheckInTime(checkins[recordId]);
-        }
-      }
-
-      // Check with live server database for real-time ticket & check-in verification
-      if (id) {
-        fetch(`/api/ticket/${encodeURIComponent(id)}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((json) => {
-            if (json && json.ticket) {
-              const t = json.ticket;
-              setTicketData((prev) => ({
-                ticketId: t.ticket_id || prev?.ticketId || id,
-                teamId: t.team_id || prev?.teamId || 'N/A',
-                teamName: t.team_name || prev?.teamName,
-                leader: t.full_name || prev?.leader,
-                email: t.email || prev?.email,
-                phone: t.phone || prev?.phone,
-                college: t.college || prev?.college,
-                dept: t.department || prev?.dept,
-                roll: t.student_id || prev?.roll,
-                eventName: t.event_name || prev?.eventName,
-                fee: t.amount_paid || prev?.fee,
-                txn: t.transaction_ref || prev?.txn,
-                screenshot: t.screenshot || prev?.screenshot,
-                members: t.members_detail || t.team_members || prev?.members || [],
-                timestamp: t.created_at || prev?.timestamp,
-              }));
-
-              if (t.check_in_status === 'CHECKED_IN') {
-                setIsCheckedIn(true);
-                if (t.check_in_time) {
-                  const d = new Date(t.check_in_time);
-                  setCheckInTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-                }
+      // Query live backend database first
+      fetch(`/api/ticket/${encodeURIComponent(id)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (!isMounted) return;
+          if (json && json.ticket) {
+            const mapped = mapTicket(json.ticket);
+            setTicketData(mapped);
+            if (json.ticket.check_in_status === 'CHECKED_IN') {
+              setIsCheckedIn(true);
+              if (json.ticket.check_in_time) {
+                const d = new Date(json.ticket.check_in_time);
+                setCheckInTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
               }
             }
-          })
-          .catch(() => {
-            fetchTicketFromCloud(id).then((t) => {
+            setIsLoading(false);
+          } else {
+            // Direct Cloud DB fallback
+            fetchTicketFromCloud(id)
+              .then((t) => {
+                if (!isMounted) return;
+                if (t) {
+                  const mapped = mapTicket(t);
+                  setTicketData(mapped);
+                  if (t.check_in_status === 'CHECKED_IN') {
+                    setIsCheckedIn(true);
+                    if (t.check_in_time) {
+                      const d = new Date(t.check_in_time);
+                      setCheckInTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                    }
+                  }
+                } else {
+                  setTicketData(null);
+                }
+                setIsLoading(false);
+              })
+              .catch(() => {
+                if (isMounted) {
+                  setTicketData(null);
+                  setIsLoading(false);
+                }
+              });
+          }
+        })
+        .catch(() => {
+          // Direct Cloud DB fallback on fetch failure
+          fetchTicketFromCloud(id)
+            .then((t) => {
+              if (!isMounted) return;
               if (t) {
-                setTicketData((prev) => ({
-                  ticketId: t.ticket_id || prev?.ticketId || id,
-                  teamId: t.team_id || prev?.teamId || 'N/A',
-                  teamName: t.team_name || prev?.teamName,
-                  leader: t.full_name || prev?.leader,
-                  email: t.email || prev?.email,
-                  phone: t.phone || prev?.phone,
-                  college: t.college || prev?.college,
-                  dept: t.department || prev?.dept,
-                  roll: t.student_id || prev?.roll,
-                  eventName: t.event_name || prev?.eventName,
-                  fee: t.amount_paid || prev?.fee,
-                  txn: t.transaction_ref || prev?.txn,
-                  screenshot: t.screenshot || prev?.screenshot,
-                  members: t.members_detail || t.team_members || prev?.members || [],
-                  timestamp: t.created_at || prev?.timestamp,
-                }));
-
+                const mapped = mapTicket(t);
+                setTicketData(mapped);
                 if (t.check_in_status === 'CHECKED_IN') {
                   setIsCheckedIn(true);
                   if (t.check_in_time) {
@@ -127,13 +107,26 @@ export default function TicketVerificationPage({ onNavigateHome }) {
                     setCheckInTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
                   }
                 }
+              } else {
+                setTicketData(null);
               }
-            }).catch(() => {});
-          });
-      }
+              setIsLoading(false);
+            })
+            .catch(() => {
+              if (isMounted) {
+                setTicketData(null);
+                setIsLoading(false);
+              }
+            });
+        });
     } catch (err) {
       console.error('Error loading ticket verification:', err);
+      setIsLoading(false);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleToggleCheckIn = () => {
@@ -236,23 +229,66 @@ export default function TicketVerificationPage({ onNavigateHome }) {
 
       {/* Main Verification Card */}
       <main style={{ maxWidth: '780px', margin: '0 auto' }}>
-        {!ticketData ? (
+        {isLoading ? (
           <div style={{
             background: 'rgba(4, 14, 38, 0.75)',
             border: '1px solid rgba(63, 216, 255, 0.25)',
+            borderRadius: '20px',
+            padding: '48px 24px',
+            textAlign: 'center',
+            backdropFilter: 'blur(16px)',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '3px solid rgba(63, 216, 255, 0.2)',
+              borderTopColor: '#3fd8ff',
+              borderRadius: '50%',
+              margin: '0 auto 16px',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <h2 style={{ fontSize: '1.2rem', color: '#e0f2fe', margin: 0 }}>Verifying Ticket in Database...</h2>
+            <p style={{ color: 'rgba(228,244,255,0.65)', marginTop: '8px', fontSize: '0.85rem' }}>
+              Querying central ZYNTRA PostgreSQL registry.
+            </p>
+          </div>
+        ) : !ticketData ? (
+          <div style={{
+            background: 'linear-gradient(145deg, rgba(30, 10, 20, 0.9), rgba(15, 5, 10, 0.95))',
+            border: '1.5px solid rgba(239, 68, 68, 0.4)',
             borderRadius: '20px',
             padding: '40px 24px',
             textAlign: 'center',
             backdropFilter: 'blur(16px)',
           }}>
-            <h2 style={{ fontSize: '1.4rem', color: '#ff6b8b' }}>Ticket Reference Not Found</h2>
-            <p style={{ color: 'rgba(228,244,255,0.7)', marginTop: '8px', fontSize: '0.85rem' }}>
-              The QR code scanned does not contain valid ticket parameters. Please rescan the official pass.
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1.5px solid #ef4444',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              fontSize: '1.4rem',
+              fontWeight: 800,
+            }}>
+              ✕
+            </div>
+            <h2 style={{ fontSize: '1.4rem', color: '#ef4444', margin: '0 0 8px', letterSpacing: '0.05em' }}>
+              INVALID PASS
+            </h2>
+            <p style={{ color: 'rgba(255, 200, 200, 0.85)', fontSize: '0.9rem', margin: '0 0 8px' }}>
+              Pass not found in ZYNTRA registry. Direct attendee to Helpdesk.
+            </p>
+            <p style={{ color: 'rgba(228,244,255,0.5)', fontSize: '0.8rem', margin: '0 auto 20px', maxWidth: '420px' }}>
+              No attendee profile found matching this code. Please verify the ticket ID with the registration desk.
             </p>
             <button
               onClick={onNavigateHome ? onNavigateHome : () => { window.location.hash = ''; }}
               style={{
-                marginTop: '20px',
                 padding: '10px 22px',
                 borderRadius: '99px',
                 background: 'linear-gradient(135deg, #1b5fe0, #27b8f0)',

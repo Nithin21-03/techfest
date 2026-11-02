@@ -232,7 +232,7 @@ export default function AdminPage({ onNavigateHome }) {
   };
 
     const combinedMap = new Map();
-    [...backendRecords, ...localList].forEach((item) => {
+    backendRecords.forEach((item) => {
       if (item) {
         const normalized = normalizeRecord(item);
         if (normalized.ticket_id) {

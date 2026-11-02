@@ -101,9 +101,9 @@ export default function ProfileRegistrationsModal({
         }
       }
 
-      // 3. Merge with local storage registrations
+      // Database records only
       try {
-        const localList = JSON.parse(localStorage.getItem('zyntra_local_registrations') || '[]');
+        const localList = [];
         localList.forEach((r) => {
           const rEmail = (r.email || '').toLowerCase().trim();
           if (rEmail === email) {

@@ -109,7 +109,7 @@ function getConnectionString() {
   let str = raw.trim();
 
   // Auto-rewrite direct Supabase IPv6 host (which fails on Vercel serverless with ENOTFOUND) to IPv4 Pooler
-  if (str.includes('db.yjmkprrvjhvpsrnnlugn.supabase.co')) {
+  if (isServerless && str.includes('db.yjmkprrvjhvpsrnnlugn.supabase.co')) {
     str = str
       .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co:5432', 'aws-1-eu-west-3.pooler.supabase.com:6543')
       .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co', 'aws-1-eu-west-3.pooler.supabase.com:6543');
@@ -152,7 +152,7 @@ export async function initializeDatabase() {
           ssl: useSsl,
           max: isServerless ? 5 : 20, // Conservative pool size for serverless
           idleTimeoutMillis: 15000,
-          connectionTimeoutMillis: 5000,
+          connectionTimeoutMillis: 15000,
         });
         pool.on('error', (err) => {
           console.warn('PostgreSQL idle client error intercepted safely:', err.message);
@@ -392,7 +392,8 @@ export async function registerParticipant(data) {
       if (err.code === '23505') {
         throw new Error(`Email ${email} is already registered for this arena.`);
       }
-      console.warn('PostgreSQL write bypassed during surge, activating persistent storage fallback:', err.message);
+      console.error('PostgreSQL registration insert error:', err.message);
+      throw new Error(`Database error: ${err.message}`);
     }
   } else {
     // Thread-safe in-memory duplicate check
@@ -821,7 +822,15 @@ export async function registerUser({ username, email, password, name }) {
         [cleanUser, cleanEmail, passwordHash, salt, cleanName, now]
       );
     } catch (dbErr) {
-      console.warn('PostgreSQL user registration notice:', dbErr.message);
+      if (dbErr.code === '23505') {
+        return {
+          success: false,
+          error: 'USER_EXISTS',
+          message: 'An account with this username or email already exists. Please sign in instead.'
+        };
+      }
+      console.error('PostgreSQL user registration failure:', dbErr.message);
+      return { success: false, error: 'DB_ERROR', message: 'Failed to record user in database: ' + dbErr.message };
     }
   }
 
