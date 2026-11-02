@@ -75,7 +75,7 @@ async function hashClientPassword(password, salt) {
    MAIN COMPONENT
    ===================================================================== */
 export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
-  const [activeDay, setActiveDay] = useState('all');
+  const [activeDay, setActiveDay] = useState('1');
   const [openFaq, setOpenFaq] = useState(new Set([0]));
   const [activeNav, setActiveNav] = useState('home');
 
@@ -1621,21 +1621,12 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           <div className="schedFilter" role="tablist" aria-label="Schedule Day Filter">
             <button
               type="button"
-              className={`schedTab ${activeDay === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveDay('all')}
-              role="tab"
-              aria-selected={activeDay === 'all'}
-            >
-              <span className="tabDot" />
-              <span className="tabText">All Days</span>
-            </button>
-            <button
-              type="button"
               className={`schedTab ${activeDay === '1' ? 'active' : ''}`}
               onClick={() => setActiveDay('1')}
               role="tab"
               aria-selected={activeDay === '1'}
             >
+              {activeDay === '1' && <span className="tabDot" />}
               <span className="tabText">Day 1</span>
             </button>
             <button
@@ -1645,6 +1636,7 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
               role="tab"
               aria-selected={activeDay === '2'}
             >
+              {activeDay === '2' && <span className="tabDot" />}
               <span className="tabText">Day 2</span>
             </button>
           </div>
