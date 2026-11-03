@@ -109,10 +109,10 @@ function getConnectionString() {
   let str = raw.trim();
 
   // Auto-rewrite direct Supabase IPv6 host (which fails on Vercel serverless with ENOTFOUND) to IPv4 Pooler
-  if (isServerless && str.includes('db.yjmkprrvjhvpsrnnlugn.supabase.co')) {
+  if (str.includes('db.yjmkprrvjhvpsrnnlugn.supabase.co')) {
     str = str
-      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co:5432', 'aws-1-eu-west-3.pooler.supabase.com:6543')
-      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co', 'aws-1-eu-west-3.pooler.supabase.com:6543');
+      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co:5432', 'aws-1-eu-west-3.pooler.supabase.com:5432')
+      .replace('db.yjmkprrvjhvpsrnnlugn.supabase.co', 'aws-1-eu-west-3.pooler.supabase.com:5432');
     if (!str.includes('postgres.yjmkprrvjhvpsrnnlugn:')) {
       str = str.replace('postgres:', 'postgres.yjmkprrvjhvpsrnnlugn:');
     }
@@ -387,6 +387,27 @@ export async function registerParticipant(data) {
       ];
 
       const res = await pool.query(query, values);
+      // Also ensure verified user account exists in users table
+      try {
+        const userCheck = await pool.query(
+          'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [normalizedEmail]
+        );
+        if (!userCheck.rows || userCheck.rows.length === 0) {
+          const autoUser = normalizedEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
+          const autoSalt = crypto.randomBytes(16).toString('hex');
+          const autoHash = crypto.pbkdf2Sync(phone.trim() || 'zyntra2026', autoSalt, 1000, 64, 'sha512').toString('hex');
+          await pool.query(
+            `INSERT INTO users (username, email, password_hash, salt, name, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (email) DO NOTHING`,
+            [autoUser, normalizedEmail, autoHash, autoSalt, fullName, new Date().toISOString()]
+          );
+        }
+      } catch (uErr) {
+        console.warn('Auto user profile sync notice:', uErr.message);
+      }
+
       return { success: true, record: res.rows[0], storage: 'postgresql' };
     } catch (err) {
       if (err.code === '23505') {

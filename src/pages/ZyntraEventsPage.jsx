@@ -1256,8 +1256,22 @@ export function Flow({ ev, onDone, close, user }) {
     if (file) {
       setScreenshotName(file.name);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshot(reader.result);
+      reader.onload = (evLoad) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          setScreenshot(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.src = evLoad.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -1362,38 +1376,43 @@ export function Flow({ ev, onDone, close, user }) {
       amountPaid: '₹' + fee,
     };
 
-    // 1. Post to Express Server / Vercel Serverless Function
+        // 1. Post to Express Server / Vercel Serverless Function
+    let registrationSuccess = false;
+    let serverMessage = '';
+
     try {
-      await fetch('/api/register', {
+      const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submissionPayload),
       });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && (json.success || json.ticketId)) {
+        registrationSuccess = true;
+      } else {
+        serverMessage = json.error || json.message || `Server returned error (${res.status})`;
+      }
     } catch (apiErr) {
-      console.warn('Backend API registration notice:', apiErr.message);
+      serverMessage = apiErr.message || 'Network connection failed.';
     }
 
-    // 2. Direct Supabase insertion fallback
-    if (isSupabaseConfigured) {
+    // 2. Direct Supabase insertion fallback if API gateway was unreachable
+    if (!registrationSuccess && isSupabaseConfigured) {
       try {
         await saveToCloudDirectly(submissionPayload);
+        registrationSuccess = true;
       } catch (cloudErr) {
-        console.warn('Direct Supabase cloud sync notice:', cloudErr.message);
+        serverMessage = cloudErr.message || serverMessage;
       }
     }
 
-    // 3. Persist to local ledger so Admin dashboard reflects instantly
-    try {
-      const localList = JSON.parse(
-        localStorage.getItem('zyntra_local_registrations') || '[]'
-      );
-      localList.unshift({
-        ...submissionPayload,
-        id: genTicket,
-        timestamp: new Date().toISOString(),
-      });
-      // Real registrations are persisted to database
-    } catch (lsErr) { }
+    if (!registrationSuccess) {
+      setIsSubmitting(false);
+      alert(`Registration could not be completed:\n${serverMessage}\n\nPlease verify your information and try again.`);
+      return;
+    }
 
     // Complete workflow callback
     onDone({ email: (d.email || email), ...d, txn, fee, ticketId: genTicket });
