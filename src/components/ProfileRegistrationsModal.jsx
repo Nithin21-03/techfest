@@ -23,6 +23,7 @@ export default function ProfileRegistrationsModal({
   onClose,
   user,
   onNavigateEvents,
+  onSignOut,
 }) {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -195,6 +196,30 @@ export default function ProfileRegistrationsModal({
             </div>
             <h3 className="profileNameTitle">{userName}</h3>
             <div className="profileEmailText">{user.email}</div>
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Sign out of your ZYNTRA account?')) {
+                    onSignOut();
+                    onClose();
+                  }
+                }}
+                style={{
+                  marginTop: '6px',
+                  background: 'rgba(255,100,100,0.1)',
+                  border: '1px solid rgba(255,100,100,0.3)',
+                  color: '#ff8a8a',
+                  padding: '3px 10px',
+                  borderRadius: '4px',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  alignSelf: 'flex-start'
+                }}
+              >
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
 

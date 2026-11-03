@@ -678,14 +678,15 @@ export async function getRegistrationByTicket(ticketOrTeamId) {
 
   if (isPostgresConnected && pool) {
     const res = await pool.query(
-      'SELECT * FROM registrations WHERE ticket_id = $1 OR team_id = $1 LIMIT 1;',
+      'SELECT * FROM registrations WHERE LOWER(ticket_id) = LOWER($1) OR LOWER(team_id) = LOWER($1) LIMIT 1;',
       [clean]
     );
     return res.rows[0] || null;
   } else {
     return (
       memoryRegistrations.find(
-        (r) => r.ticket_id === clean || r.team_id === clean
+        (r) => (r.ticket_id && r.ticket_id.toLowerCase() === clean.toLowerCase()) ||
+               (r.team_id && r.team_id.toLowerCase() === clean.toLowerCase())
       ) || null
     );
   }
@@ -806,15 +807,17 @@ export async function registerUser({ username, email, password, name }) {
     } catch (_) {}
   }
 
-  // Check duplicate in memory first
+  let finalUser = cleanUser;
+
+  // Check email duplicate in memory first
   const memExisting = memoryUsers.find(
-    (u) => u.username.toLowerCase() === cleanUser || u.email.toLowerCase() === cleanEmail
+    (u) => u.email.toLowerCase() === cleanEmail
   );
   if (memExisting) {
     return {
       success: false,
       error: 'USER_EXISTS',
-      message: 'An account with this username or email already exists. Please sign in instead.'
+      message: 'An account with this email already exists. Please sign in instead.'
     };
   }
 
@@ -824,30 +827,45 @@ export async function registerUser({ username, email, password, name }) {
 
   if (isPostgresConnected && pool) {
     try {
-      // Check existing in DB
-      const checkRes = await pool.query(
-        'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2) LIMIT 1',
-        [cleanUser, cleanEmail]
+      // 1. Check if email already registered
+      const emailRes = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+        [cleanEmail]
       );
-      if (checkRes.rows && checkRes.rows.length > 0) {
+      if (emailRes.rows && emailRes.rows.length > 0) {
         return {
           success: false,
           error: 'USER_EXISTS',
-          message: 'An account with this username or email already exists. Please sign in instead.'
+          message: 'An account with this email already exists. Please sign in instead.'
         };
+      }
+
+      // 2. Ensure username uniqueness by auto-suffixing if needed
+      let userCheck = await pool.query(
+        'SELECT id FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1',
+        [finalUser]
+      );
+      let suffix = 1;
+      while (userCheck.rows && userCheck.rows.length > 0) {
+        finalUser = `${cleanUser}_${suffix}`;
+        userCheck = await pool.query(
+          'SELECT id FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1',
+          [finalUser]
+        );
+        suffix++;
       }
 
       await pool.query(
         `INSERT INTO users (username, email, password_hash, salt, name, created_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [cleanUser, cleanEmail, passwordHash, salt, cleanName, now]
+        [finalUser, cleanEmail, passwordHash, salt, cleanName, now]
       );
     } catch (dbErr) {
       if (dbErr.code === '23505') {
         return {
           success: false,
           error: 'USER_EXISTS',
-          message: 'An account with this username or email already exists. Please sign in instead.'
+          message: 'An account with this email already exists. Please sign in instead.'
         };
       }
       console.error('PostgreSQL user registration failure:', dbErr.message);
@@ -858,7 +876,7 @@ export async function registerUser({ username, email, password, name }) {
   // Always update memory & atomic storage
   const userRecord = {
     id: memoryUsers.length + 1,
-    username: cleanUser,
+    username: finalUser,
     email: cleanEmail,
     password_hash: passwordHash,
     salt,
@@ -871,7 +889,7 @@ export async function registerUser({ username, email, password, name }) {
   return {
     success: true,
     user: {
-      username: cleanUser,
+      username: finalUser,
       email: cleanEmail,
       name: cleanName
     }

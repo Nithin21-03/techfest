@@ -877,12 +877,28 @@ export function GoogleAuthPopup({ isOpen, onClose, leaderName, leaderEmail, onSe
 
 export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
   const [mode, setMode] = useState('in');
-  const [f, setF] = useState({ name: '', email: '', pw: '', pw2: '', remember: true });
+  const [f, setF] = useState({
+    name: leaderName || '',
+    email: leaderEmail || '',
+    pw: '',
+    pw2: '',
+    remember: true,
+  });
   const [show, setShow] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+
+  useEffect(() => {
+    if (leaderName || leaderEmail) {
+      setF((prev) => ({
+        ...prev,
+        name: prev.name || leaderName || '',
+        email: prev.email || leaderEmail || '',
+      }));
+    }
+  }, [leaderName, leaderEmail]);
 
   const sess = load('zyntra_session', null);
   const up = mode === 'up';
@@ -953,7 +969,12 @@ export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
           }
           registeredUser = data.user;
         } catch (apiErr) {
-          console.warn('API register notice, using local session:', apiErr.message);
+          console.warn('API register error:', apiErr.message);
+          return setErr('Unable to connect to authentication server. Please check your network.');
+        }
+
+        if (!registeredUser) {
+          return setErr('Account creation could not be verified by server.');
         }
 
         const u = {
@@ -981,13 +1002,17 @@ export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
           } else if (data.error === 'INVALID_PASSWORD') {
             return setErr('Incorrect password. Please verify and try again.');
           } else if (data.error === 'USER_NOT_FOUND') {
-            return setErr('No account found with this email. Please click Sign up to create an account.');
+            return setErr('No account found with this email. Please click Create account to register.');
           } else {
             return setErr(data.message || 'Authentication failed.');
           }
         } catch (apiErr) {
-          console.warn('API login notice:', apiErr.message);
+          console.warn('API login error:', apiErr.message);
           return setErr('Unable to connect to authentication server. Please check your network.');
+        }
+
+        if (!authenticatedUser) {
+          return setErr('Authentication could not be verified by server.');
         }
 
         const u = {
@@ -1180,13 +1205,16 @@ export function SignIn({ evId, onAuth, leaderName = '', leaderEmail = '' }) {
   );
 }
 
-const STEPS = ['Team leader', 'Members', 'Verify', 'Sign in & pay'];
-
-export function Flow({ ev, onDone, close, user }) {
+export function Flow({ ev, onDone, close, user, onUserAuth }) {
   const solo = /^individual$/i.test(ev.team);
+  const STEPS = solo
+    ? ['Leader details', 'Verify details', 'Sign in', 'Payment']
+    : ['Team leader', 'Members', 'Verify details', 'Sign in', 'Payment'];
+
   const draftKey = 'zyntra_draft_' + ev.id;
   const draft = load(draftKey, null);
   const sess = load('zyntra_session', null);
+  const [currentUser, setCurrentUser] = useState(() => user || sess);
   const initialEmail = (user && user.email) || (sess && sess.email) || (draft && draft.d && draft.d.email) || '';
 
   const blank = {
@@ -1201,7 +1229,7 @@ export function Flow({ ev, onDone, close, user }) {
   };
 
   const [d, setD] = useState(draft && draft.d ? { ...blank, ...draft.d, email: draft.d.email || initialEmail } : blank);
-  // steps: 0 leader, 1 members, 2 verify, 3 confirm/notice, 4 payment, 5 thank you
+  // steps: 0 leader, 1 members, 2 verify, 3 auth gate, 4 payment, 5 thank you
   const [step, setStep] = useState(user && draft ? 4 : 0);
   const [email, setEmail] = useState(initialEmail);
   const [ok, setOk] = useState(false);
@@ -1284,12 +1312,22 @@ export function Flow({ ev, onDone, close, user }) {
     });
 
   const next = () => setStep(step === 0 && solo ? 2 : step + 1);
-  const prev = () => setStep(step === 2 && solo ? 0 : step - 1);
-  const bar = Math.min(step, 3);
+  const prev = () => setStep(step === 2 && solo ? 0 : step === 4 ? (currentUser || user || load('zyntra_session', null) ? 2 : 3) : step - 1);
+  const currentStepIdx = solo
+    ? (step === 0 ? 0 : step === 2 ? 1 : step === 3 ? 2 : step === 4 ? 3 : 3)
+    : Math.min(step, 4);
 
   /* Final Payment and Database Persistence Hook */
   const handleConfirmRegistration = async () => {
     if (isSubmitting) return;
+
+    const activeSession = currentUser || user || load('zyntra_session', null);
+    if (!activeSession) {
+      alert('Authentication required: Please sign in or create an account before completing your registration.');
+      setStep(3);
+      return;
+    }
+
     setIsSubmitting(true);
     const genTicket =
       'ZY-' +
@@ -1304,13 +1342,15 @@ export function Flow({ ev, onDone, close, user }) {
     setAssignedTeamId(genTeamId);
 
     const activeMembers = Array.isArray(d.members) ? d.members.filter(m => m.name && m.name.trim()) : [];
+    const activeEmail = (activeSession.email || d.email || email).trim().toLowerCase();
+    const activeLeader = (d.leader || activeSession.name || activeSession.username).trim();
 
     const payloadObj = {
       ticketId: genTicket,
       teamId: genTeamId,
-      teamName: (d.team || d.leader).trim(),
-      leader: d.leader.trim(),
-      email: (d.email || email).trim().toLowerCase(),
+      teamName: (d.team || activeLeader).trim(),
+      leader: activeLeader,
+      email: activeEmail,
       phone: d.phone.trim(),
       college: d.college.trim() || 'Sapthagiri NPS University',
       dept: d.dept.trim(),
@@ -1355,9 +1395,9 @@ export function Flow({ ev, onDone, close, user }) {
     const submissionPayload = {
       ticketId: genTicket,
       teamId: genTeamId,
-      fullName: d.leader.trim(),
+      fullName: activeLeader,
       college: d.college.trim() || 'Sapthagiri NPS University',
-      email: (d.email || email || '').trim().toLowerCase(),
+      email: activeEmail,
       screenshot: screenshot || '',
       phone: d.phone.trim(),
       studentId: d.roll.trim() || 'N/A',
@@ -1365,7 +1405,7 @@ export function Flow({ ev, onDone, close, user }) {
       semester: '6th Semester',
       eventId: ev.id,
       eventName: ev.name,
-      teamName: (d.team || d.leader).trim(),
+      teamName: (d.team || activeLeader).trim(),
       teamMembers: Array.isArray(d.members)
         ? d.members.map((m) => m.name).filter(Boolean)
         : [],
@@ -1376,7 +1416,7 @@ export function Flow({ ev, onDone, close, user }) {
       amountPaid: '₹' + fee,
     };
 
-        // 1. Post to Express Server / Vercel Serverless Function
+    // 1. Post to Express Server / Vercel Serverless Function
     let registrationSuccess = false;
     let serverMessage = '';
 
@@ -1415,7 +1455,7 @@ export function Flow({ ev, onDone, close, user }) {
     }
 
     // Complete workflow callback
-    onDone({ email: (d.email || email), ...d, txn, fee, ticketId: genTicket });
+    onDone({ email: activeEmail, ...d, leader: activeLeader, txn, fee, ticketId: genTicket });
     try {
       localStorage.removeItem(draftKey);
     } catch (e) { }
@@ -1433,10 +1473,7 @@ export function Flow({ ev, onDone, close, user }) {
         <Logo cls="logo" />
         <span className="label">
           {step < 5
-            ? 'Step ' +
-            (bar + 1) +
-            ' of 4 · ' +
-            (step === 3 ? 'Sign in' : step === 4 ? 'Payment' : STEPS[step])
+            ? `Step ${currentStepIdx + 1} of ${STEPS.length} · ${STEPS[currentStepIdx]}`
             : 'Registration complete'}
         </span>
         <h2 className="big" style={{ margin: '10px 0 16px' }}>
@@ -1446,12 +1483,12 @@ export function Flow({ ev, onDone, close, user }) {
 
       <div className="steps">
         {STEPS.map((n, i) => (
-          <i key={i} className={i <= bar ? 'on' : ''} title={n}></i>
+          <i key={i} className={i <= currentStepIdx ? 'on' : ''} title={n}></i>
         ))}
       </div>
       <div className="stepnames">
         {STEPS.map((n, i) => (
-          <span key={n} className={i === bar ? 'on' : ''}>
+          <span key={n} className={i === currentStepIdx ? 'on' : ''}>
             {n}
           </span>
         ))}
@@ -1705,9 +1742,21 @@ export function Flow({ ev, onDone, close, user }) {
             <button
               className="btn pri"
               disabled={!ok}
-              onClick={() => setStep(4)}
+              onClick={() => {
+                const activeSession = currentUser || user || load('zyntra_session', null);
+                if (activeSession) {
+                  setStep(4);
+                } else {
+                  setStep(3);
+                }
+              }}
             >
-              Verified · Proceed to Payment (₹{fee}) →
+              {(() => {
+                const activeSession = currentUser || user || load('zyntra_session', null);
+                return activeSession
+                  ? `Verified · Proceed to Payment (₹${fee}) →`
+                  : `Verified · Sign In to Pay (₹${fee}) →`;
+              })()}
             </button>
             <button className="mini" onClick={prev}>
               Back
@@ -1717,17 +1766,36 @@ export function Flow({ ev, onDone, close, user }) {
       )}
 
       {step === 3 && (
-        <div className="glass panel" style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
-          <h3>Verification Complete</h3>
-          <p className="hint">
-            All details verified for <b>{ev.name}</b>. Ready to proceed to payment.
-          </p>
-          <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
-            <button className="btn pri" onClick={() => setStep(4)}>
-              Proceed to Payment (₹{fee}) →
-            </button>
-            <button className="mini" onClick={() => setStep(2)}>
-              ← Back to verify
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <span className="label" style={{ fontSize: '0.72rem', color: '#3fd8ff', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>
+              Authentication Required
+            </span>
+            <h3 style={{ margin: '6px 0 0', fontSize: '1.4rem' }}>Sign In or Create Account</h3>
+            <p style={{ color: 'rgba(228,244,255,0.7)', fontSize: '0.85rem', margin: '6px 0 0' }}>
+              Please sign in or create an account to secure your registration and pass for <b>{ev.name}</b>.
+            </p>
+          </div>
+          <SignIn
+            evId={ev.id}
+            leaderName={d.leader}
+            leaderEmail={d.email || email}
+            onAuth={(authenticatedUser) => {
+              setCurrentUser(authenticatedUser);
+              if (onUserAuth) onUserAuth(authenticatedUser);
+              if (!d.leader && authenticatedUser.name) {
+                setD((prev) => ({ ...prev, leader: authenticatedUser.name }));
+              }
+              if (!d.email && authenticatedUser.email) {
+                setD((prev) => ({ ...prev, email: authenticatedUser.email }));
+                setEmail(authenticatedUser.email);
+              }
+              setStep(4);
+            }}
+          />
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" className="mini" onClick={() => setStep(2)}>
+              ← Back to verify details
             </button>
           </div>
         </div>
@@ -1735,6 +1803,51 @@ export function Flow({ ev, onDone, close, user }) {
 
       {step === 4 && (
         <div className="glass panel" style={{ maxWidth: 540, margin: '0 auto' }}>
+          {(() => {
+            const activeSession = currentUser || user || load('zyntra_session', null);
+            if (!activeSession) {
+              return (
+                <div style={{ padding: '14px', background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.3)', borderRadius: '8px', marginBottom: '16px', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 10px', color: '#ffb4b4', fontSize: '0.85rem' }}>
+                    Authentication is required before proceeding to payment.
+                  </p>
+                  <button type="button" className="btn pri" onClick={() => setStep(3)}>
+                    Sign In / Sign Up Now
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: 'rgba(63, 216, 255, 0.08)',
+                borderRadius: '8px',
+                border: '1px solid rgba(63, 216, 255, 0.25)',
+                marginBottom: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: '#3fd8ff', fontSize: '1.1rem' }}>✓</span>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e4f4ff' }}>
+                      Logged in: {activeSession.name || activeSession.username}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(228,244,255,0.65)' }}>{activeSession.email}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="mini"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                  onClick={() => setStep(3)}
+                >
+                  Switch
+                </button>
+              </div>
+            );
+          })()}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(140,200,255,0.15)', paddingBottom: 14 }}>
             <div>
               <span className="label" style={{ fontSize: '0.65rem' }}>Final Step · Official UPI Payment</span>
@@ -2385,6 +2498,7 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
   const [form, setForm] = useState(null);
   const [gUser, setGUser] = useState(() => load('zyntra_session', null));
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Google OAuth redirect token check
   useEffect(() => {
@@ -2465,29 +2579,68 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
           <button className="mini" onClick={() => go(null)}>
             Events
           </button>
-          {gUser && (
+          {gUser ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                className="mini"
+                onClick={() => setProfileModalOpen(true)}
+                title="Click to view your registered events and scannable QR ticket passes"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderColor: 'rgba(63, 216, 255, 0.45)',
+                  background: 'rgba(10, 20, 36, 0.75)',
+                  color: '#e8f4fc',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '0.85rem' }}>👤</span>
+                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {gUser.name || gUser.email.split('@')[0]}
+                </span>
+                <span style={{ fontSize: '0.68rem', padding: '1px 5px', background: 'rgba(63, 216, 255, 0.22)', color: '#3fd8ff', borderRadius: '4px', marginLeft: '2px', fontWeight: 700 }}>
+                  Passes 🎟️
+                </span>
+              </button>
+              <button
+                type="button"
+                className="mini"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to sign out?')) {
+                    localStorage.removeItem('zyntra_session');
+                    setGUser(null);
+                  }
+                }}
+                title="Sign out of your account"
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.75rem',
+                  color: 'rgba(255, 120, 120, 0.85)',
+                  borderColor: 'rgba(255, 100, 100, 0.3)',
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              className="mini"
-              onClick={() => setProfileModalOpen(true)}
-              title="Click to view your registered events and scannable QR ticket passes"
+              className="mini pri"
+              onClick={() => setAuthModalOpen(true)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                borderColor: 'rgba(63, 216, 255, 0.45)',
-                background: 'rgba(10, 20, 36, 0.75)',
-                color: '#e8f4fc',
+                background: 'linear-gradient(135deg, rgba(63,216,255,0.25), rgba(76,140,255,0.25))',
+                borderColor: '#3fd8ff',
+                color: '#fff',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
-              <span style={{ fontSize: '0.85rem' }}>👤</span>
-              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {gUser.name || gUser.email.split('@')[0]}
-              </span>
-              <span style={{ fontSize: '0.68rem', padding: '1px 5px', background: 'rgba(63, 216, 255, 0.22)', color: '#3fd8ff', borderRadius: '4px', marginLeft: '2px', fontWeight: 700 }}>
-                Passes 🎟️
-              </span>
+              <span>Sign In / Sign Up</span>
             </button>
           )}
 
@@ -2498,6 +2651,7 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
         <Flow
           ev={form}
           user={gUser}
+          onUserAuth={(u) => setGUser(u)}
           close={() => {
             setForm(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2542,12 +2696,70 @@ export default function ZyntraEventsPage({ onOpenAdmin, onNavigateHome }) {
         </div>
       )}
 
+      {/* Standalone Authentication Modal */}
+      {authModalOpen && (
+        <div
+          className="profileModalOverlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(2, 6, 18, 0.82)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAuthModalOpen(false);
+          }}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: '460px' }}>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(false)}
+              aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: '-12px',
+                right: '-12px',
+                zIndex: 10,
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: '#131e33',
+                border: '1px solid rgba(140,200,255,0.3)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+            <SignIn
+              onAuth={(u) => {
+                setGUser(u);
+                setAuthModalOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Profile Registered Events & QR Passes Modal */}
       <ProfileRegistrationsModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
         user={gUser}
         onNavigateEvents={() => go(null)}
+        onSignOut={() => {
+          localStorage.removeItem('zyntra_session');
+          setGUser(null);
+        }}
       />
     </div>
   );

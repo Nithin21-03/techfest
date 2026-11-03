@@ -159,10 +159,10 @@ const adminLoginLimiter = createRateLimiter({
   message: 'Administrative security lockdown: Too many passcode attempts. Access frozen for 15 minutes.',
 });
 
-// Student Authentication Rate Limiter: 25 attempts per 15 minutes
+// Student Authentication Rate Limiter: 200 attempts per 15 minutes
 const authLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  maxRequests: 25,
+  maxRequests: 200,
   message: 'Too many authentication attempts. Please wait a few minutes before trying again.',
 });
 

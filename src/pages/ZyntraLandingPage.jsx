@@ -828,6 +828,11 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         registeredUser = data.user;
       } catch (err) {
         console.warn('API registration fetch notice:', err.message);
+        setAuthFeedback({
+          type: 'error',
+          msg: 'Unable to connect to authentication server. Please check your network and try again.',
+        });
+        return;
       }
 
       // Establish Session and update local cache
@@ -840,14 +845,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
 
       try {
         localStorage.setItem('zyntra_session', JSON.stringify(userSession));
-        const safeUsers = getSafeLocalUsers().filter(u => u.email !== email && u.username !== username);
-        safeUsers.push({
-          username: userSession.username,
-          email: userSession.email,
-          name: userSession.name,
-          createdAt: new Date().toISOString(),
-        });
-        localStorage.setItem('zyntra_users', JSON.stringify(safeUsers));
         setCurrentUser(userSession);
       } catch (_) {}
 
@@ -864,7 +861,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
     // ---------------------------------------------------------------
     if (authMode === 'login') {
       let loggedInUser = null;
-      let apiAttempted = false;
 
       try {
         const res = await fetch('/api/auth/login', {
@@ -873,7 +869,6 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           body: JSON.stringify({ identifier: cleanId, password: loginPass }),
         });
         const data = await res.json();
-        apiAttempted = true;
 
         if (res.ok && data.success && data.user) {
           loggedInUser = data.user;
@@ -884,35 +879,11 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
           });
           return;
         } else if (data.error === 'USER_NOT_FOUND') {
-          // Check resilient local cache before reporting error
-          const safeUsers = getSafeLocalUsers();
-          const userRec = safeUsers.find(
-            (u) =>
-              (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
-              (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
-          );
-          if (userRec) {
-            const hash = await hashClientPassword(loginPass, userRec.salt);
-            if (hash === userRec.passwordHash || userRec.h) {
-              loggedInUser = {
-                email: userRec.email,
-                name: userRec.name || userRec.username,
-                username: userRec.username || userRec.email.split("@")[0],
-              };
-            } else {
-              setAuthFeedback({
-                type: 'error',
-                msg: 'Incorrect password. Please verify your credentials and try again.',
-              });
-              return;
-            }
-          } else {
-            setAuthFeedback({
-              type: 'error',
-              msg: 'No account found with this ID or email. Please click Sign Up to register.',
-            });
-            return;
-          }
+          setAuthFeedback({
+            type: 'error',
+            msg: 'No account found with this ID or email. Please click Sign Up to register.',
+          });
+          return;
         } else {
           setAuthFeedback({
             type: 'error',
@@ -922,45 +893,17 @@ export default function ZyntraLandingPage({ onOpenEvents, onOpenAdmin }) {
         }
       } catch (netErr) {
         console.warn('API login notice:', netErr.message);
-      }
-
-      // Fallback for offline usage if API request failed completely
-      if (!loggedInUser && !apiAttempted) {
-        const safeUsers = getSafeLocalUsers();
-        const userRec = safeUsers.find(
-          (u) =>
-            (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
-            (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
-        );
-
-        if (!userRec) {
-          setAuthFeedback({
-            type: 'error',
-            msg: 'No account found with this ID or email. Please click Sign Up to register.',
-          });
-          return;
-        }
-
-        const hash = await hashClientPassword(loginPass, userRec.salt);
-        if (hash === userRec.passwordHash || userRec.h) {
-          loggedInUser = {
-            email: userRec.email,
-            name: userRec.name || userRec.username,
-            username: userRec.username || userRec.email.split("@")[0],
-          };
-        } else {
-          setAuthFeedback({
-            type: 'error',
-            msg: 'Incorrect password. Please verify your credentials and try again.',
-          });
-          return;
-        }
+        setAuthFeedback({
+          type: 'error',
+          msg: 'Unable to connect to authentication server. Please check your network and try again.',
+        });
+        return;
       }
 
       if (!loggedInUser) {
         setAuthFeedback({
           type: 'error',
-          msg: 'Authentication failed. Please check your credentials.',
+          msg: 'Authentication verification failed.',
         });
         return;
       }
